@@ -68,7 +68,6 @@ typedef struct _fh_slot fh_slot;
 /** struttura equivalente ad un' entry della hash table */
 struct _f_hash {
 	/** mutex associato all' entry della hash */
-//	pthread_mutex_t	mstrHash;
 	/** puntatore alla generica struttura strHSlot da inserire nella hash*/
 	fh_slot *h_slot;
 };
@@ -106,6 +105,7 @@ int 	fh_search(fh_t *fh, char *HKey, void *block );
 int 	fh_scan_start(fh_t *fh, int pos, void **slot);
 int 	fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque);
 void *fh_searchlock(fh_t *fh, char *key, int *slot);
+void	fh_releaselock(fh_t *fh, int slot);
 
 /*
 int 	FHashDump(strFHashInfo *Hid, char *acFile);
