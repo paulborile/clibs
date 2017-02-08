@@ -4,7 +4,12 @@
 #include <time.h>
 #include <pthread.h>
 
-#define HASH_SIZE 30000
+
+#include    "fh.h"
+#include    "timing.h"
+
+
+#define HASH_SIZE 300000
 
 // old hash function
 static unsigned int fh_default_hash_orig(char *name, int i)
@@ -21,7 +26,17 @@ static unsigned int fh_default_hash_orig(char *name, int i)
     return h % i;
 }
 
-#include    "fh.h"
+double  compute_average(double current_avg, int count, int new_value)
+{
+    if ( count == 0 )
+    {
+        return (new_value);
+    }
+    else
+    {
+        return (((current_avg * count) + new_value) / (count+1));
+    }
+}
 
 int main( int argc, char **argv )
 {
@@ -34,6 +49,10 @@ int main( int argc, char **argv )
         char checksum[128];
         int i;
     } md, md2;
+    double insert_time;
+    double search_time;
+    unsigned long long delta;
+    void *t = timing_new_timer(1);
 
     if ( argc > 1 )
     {
@@ -62,12 +81,18 @@ int main( int argc, char **argv )
         sprintf(md.buffer, "%d", i);
         md.i = i;
 
+        timing_start(t);
         int err = fh_insert(f, md.buffer, &md);
+        delta = timing_end(t);
+        insert_time = compute_average(insert_time, i, delta);
+
         if ( err < 0 )
         {
             printf("error %d in fh_insert\n", err);
         }
     }
+    printf("Average insert time in nanosecs : %.2f\n", insert_time);
+
     int curr;
     if ( !fh_getattr(f, FH_ATTR_ELEMENT, &curr) )
     {
@@ -88,7 +113,12 @@ int main( int argc, char **argv )
     for (int i = 0; i< HASH_SIZE/2; i++ )
     {
         sprintf(md.buffer, "%d", i);
+
+        timing_start(t);
         int err = fh_search(f, md.buffer, &md);
+        delta = timing_end(t);
+        search_time = compute_average(search_time, i, delta);
+
         if ( err < 0 )
         {
             printf("error %d in fh_del\n", err);
@@ -98,6 +128,9 @@ int main( int argc, char **argv )
             printf("error in search md.%d != %d\n", md.i, i);
         }
     }
+
+    printf("Average access time in nanosecs : %.2f\n", search_time);
+
 
     printf("deleting ..\n");
     for (int i = 0; i< HASH_SIZE/2; i++ )
@@ -175,6 +208,7 @@ int main( int argc, char **argv )
     }
     printf("hash real size %d\n", real_size);
 
+    insert_time = 0;
     for (int i = 0; i< HASH_SIZE/2; i++ )
     {
         sprintf(md.buffer, "%06d", i);
@@ -182,12 +216,17 @@ int main( int argc, char **argv )
         // printf("generating checksum %s\n", md.checksum);
         md.i = i;
 
+        timing_start(t);
         int err = fh_insert(f, md.buffer, md.checksum);
+        delta = timing_end(t);
+        insert_time = compute_average(insert_time, i, delta);
+
         if ( err < 0 )
         {
             printf("error %d in fh_insert\n", err);
         }
     }
+    printf("Average insert time in nanosecs : %.2f\n", insert_time);
 
     if ( !fh_getattr(f, FH_ATTR_ELEMENT, &curr) )
     {
@@ -204,14 +243,19 @@ int main( int argc, char **argv )
 
 // search
     printf("searching ..\n");
-
+    search_time = 0;
     for (int i = 0; i< HASH_SIZE/2; i++ )
     {
         char cksum[128];
         sprintf(md.buffer, "%06d", i);
         sprintf(cksum, "%0x", i);
 
+
+        timing_start(t);
         int err = fh_search(f, md.buffer, md.checksum);
+        delta = timing_end(t);
+        search_time = compute_average(search_time, i, delta);
+
         if ( err < 0 )
         {
             printf("error %d in fh_search\n", err);
@@ -221,6 +265,7 @@ int main( int argc, char **argv )
             printf("error in search md.checksum %s != %d checksum %s\n", md.checksum, i, cksum);
         }
     }
+    printf("Average access time in nanosecs : %.2f\n", search_time);
 
     printf("deleting ..\n");
     for (int i = 0; i< HASH_SIZE/2; i++ )
@@ -253,7 +298,7 @@ int main( int argc, char **argv )
     {
         sprintf(md.buffer, "%06d", i);
         sprintf(md.checksum, "%0x", i);
-        printf("generating checksum %s\n", md.checksum);
+        //printf("generating checksum %s\n", md.checksum);
         md.i = i;
 
         int err = fh_insert(f, md.buffer, md.checksum);

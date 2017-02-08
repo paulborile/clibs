@@ -1,7 +1,7 @@
-OBJ = test.o
-LOCAL_CFLAGS = 
+OBJ = test.o timing.o
+LOCAL_CFLAGS =
 
-CFLAGS = -g -I.. 
+CFLAGS = -g -I..
 
 fhtest: $(OBJ)
 	$(CC) -o $@ $(OBJ) -lfh -L .. -lpthread
