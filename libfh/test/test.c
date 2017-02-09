@@ -61,7 +61,7 @@ int main( int argc, char **argv )
 
     printf("Testing fixed size opaque data\n");
 
-    f = fh_create(size, sizeof(struct mydata), fh_default_hash_orig);
+    f = fh_create(size, sizeof(struct mydata), NULL);
 
     if ( f == NULL )
     {
@@ -113,6 +113,7 @@ int main( int argc, char **argv )
     for (int i = 0; i< HASH_SIZE/2; i++ )
     {
         sprintf(md.buffer, "%d", i);
+        struct mydata *m;
 
         timing_start(t);
         int err = fh_search(f, md.buffer, &md, sizeof(md));
@@ -121,16 +122,27 @@ int main( int argc, char **argv )
 
         if ( err < 0 )
         {
-            printf("error %d in fh_del\n", err);
+            printf("error %d in fh_search\n", err);
         }
         if ( md.i != i)
         {
             printf("error in search md.%d != %d\n", md.i, i);
         }
+
+        // use also fh_get
+        m = fh_get(f, md.buffer, &err);
+        if ( m == NULL)
+        {
+            printf("error %d in fh_get\n", err);
+        }
+        if ( m->i != i)
+        {
+            printf("error in fh_get m->%d != %d\n", m->i, i);
+        }
+
     }
 
     printf("Average access time in nanosecs : %.2f\n", search_time);
-
 
     printf("deleting ..\n");
     for (int i = 0; i< HASH_SIZE/2; i++ )
@@ -174,7 +186,7 @@ int main( int argc, char **argv )
     // now scan
     int index = fh_scan_start(f, 0, &slot);
 
-    while (fh_scan_next(f, &index, &slot, mykey, &md2) != FH_SCAN_END )
+    while (fh_scan_next(f, &index, &slot, mykey, &md2, sizeof(md2)) != FH_SCAN_END )
     {
         //printf("mykey %s, md2.i = %d\n", mykey, md2.i);
         if ( strcmp(mykey, md2.buffer) != 0 )
@@ -193,7 +205,7 @@ int main( int argc, char **argv )
     printf("Testing string opaque data --------------\n");
 
 
-    f = fh_create(size, -1, fh_default_hash_orig);
+    f = fh_create(size, -1, NULL);
 
     if ( f == NULL )
     {
@@ -247,9 +259,9 @@ int main( int argc, char **argv )
     for (int i = 0; i< HASH_SIZE/2; i++ )
     {
         char cksum[128];
+        char *csum;
         sprintf(md.buffer, "%06d", i);
         sprintf(cksum, "%0x", i);
-
 
         timing_start(t);
         int err = fh_search(f, md.buffer, md.checksum, 128);
@@ -264,6 +276,18 @@ int main( int argc, char **argv )
         {
             printf("error in search md.checksum %s != %d checksum %s\n", md.checksum, i, cksum);
         }
+
+        csum = fh_get(f, md.buffer, &err);
+        if (csum == NULL)
+        {
+            printf("error %d in fh_get\n", err);
+        }
+
+        if ( strcmp(csum, cksum) != 0 )
+        {
+            printf("error in fh_get : ret %s != %d checksum %s\n", csum, i, cksum);
+        }
+
     }
     printf("Average access time in nanosecs : %.2f\n", search_time);
 
@@ -311,7 +335,7 @@ int main( int argc, char **argv )
 // now scan
     index = fh_scan_start(f, 0, &slot);
 
-    while (fh_scan_next(f, &index, &slot, mykey, md2.checksum) != FH_SCAN_END )
+    while (fh_scan_next(f, &index, &slot, mykey, md2.checksum, 128) != FH_SCAN_END )
     {
         //printf("mykey %s, md2.i = %d\n", mykey, md2.i);
         char cksum[128];

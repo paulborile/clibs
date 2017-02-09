@@ -295,10 +295,6 @@ int fh_insert(fh_t *fh, char *key, void *block)
             }
             memcpy(new_opaque_obj, block, fh->h_datalen);
         }
-        else if ( fh->h_datalen == 0 ) // datalen = 0 just copy pointers
-        {
-            new_opaque_obj = block;
-        }
         else if ( fh->h_datalen == -1 ) // datalen = -1 => opaque is string
         {
             int len = strlen(block);
@@ -412,18 +408,43 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
         {
             strncpy(block, h_slot->opaque_obj, block_size);
         }
-        else
-        {
-            block = h_slot->opaque_obj;
-        }
     }
 
     _fh_unlock(fh);
     return (i);
 }
 
+// search the hash end return poinbter to the opaque_obj or NULL
+void *fh_get(fh_t *fh, char *key, int *error)
+{
+    int i;
+    register fh_slot *h_slot;
+
+    _fh_lock(fh);
+    i = fh->hash_function(key, fh->h_dim);
+
+    assert(i<fh->h_dim);
+
+    h_slot = fh->hash_table[i].h_slot;
+
+    while ((h_slot != NULL) && (strcmp(h_slot->key, key)))
+    {
+        h_slot = h_slot->next;
+    }
+
+    if ( h_slot == NULL )
+    {
+        *error = FH_ELEMENT_NOT_FOUND;
+        _fh_unlock(fh);
+        return (NULL);
+    }
+    _fh_unlock(fh);
+    return (h_slot->opaque_obj);
+}
+
+
 // search and return locked pointer to opaque
-// allows modifying an opaque object entry without del/insert TODO modify when lock are introduced
+// allows modifying an opaque object entry without del/insert
 void *fh_searchlock(fh_t *fh, char *key, int *slot)
 {
     int i;
@@ -484,7 +505,7 @@ int fh_scan_start(fh_t *fh, int start_index, void **slot)
 
 // takes index and slot as point of last scan and starting from there returns next entry (copies key and opaque)
 // if index and slot are not valida anymore return FH_ELEMENT_NOT_FOUND but continues
-int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block)
+int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int block_size)
 {
     int i, el_not_found = 0;
     register fh_slot *h_slot;
@@ -529,11 +550,7 @@ int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block)
             }
             else if ( fh->h_datalen == -1 ) // copy string
             {
-                strcpy(block, h_slot->opaque_obj);
-            }
-            else
-            {
-                block = h_slot->opaque_obj;
+                strncpy(block, h_slot->opaque_obj, block_size);
             }
         }
 

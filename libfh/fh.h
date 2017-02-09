@@ -69,11 +69,12 @@ int 	fh_setattr(fh_t *fh, int attr, int value);
 int 	fh_getattr(fh_t *fh, int attr, int *value);
 int 	fh_destroy(fh_t *fh );
 int 	fh_insert(fh_t *fh, char *key, void *opaque);
-int 	fh_del(fh_t *fh, char *HKey );
-int 	fh_search(fh_t *fh, char *HKey, void *block, int blocksize);
+int 	fh_del(fh_t *fh, char *key );
+int 	fh_search(fh_t *fh, char *key, void *opaque, int opaque_size);
+void *fh_get(fh_t *fh, char *key, int *error);
 
 int 	fh_scan_start(fh_t *fh, int pos, void **slot);
-int 	fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque);
+int 	fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque, int opaque_size);
 void *fh_searchlock(fh_t *fh, char *key, int *slot);
 void	fh_releaselock(fh_t *fh, int slot);
 
