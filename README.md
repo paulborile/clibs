@@ -15,9 +15,14 @@ int main(int argc, char **argv)
     int err = fh_insert(f, "thekey", "value");
 
     char str[64];
-    err = fh_search(f, "thekey", str);
+    err = fh_search(f, "thekey", str, 64); // search will copy out data
 
     printf("value for the key : %s\n", str);
+
+	// to get only the pointer to data
+	char *value = fh_get(f, "thekey", &err);
+
+    printf("value for the key : %s\n", value);
 
     fh_del(f, "thekey");
 
@@ -25,5 +30,11 @@ int main(int argc, char **argv)
 }
 
 ```
+To compile :
+
+```
+cd libfh ; make -f libfh.mk clean lib
+```
+
 
 libmtfh : multi thread optimized fast hash, still to be uploaded
