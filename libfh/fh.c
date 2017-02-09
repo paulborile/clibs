@@ -32,8 +32,6 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <math.h>
 #include <pthread.h>
 #include <assert.h>
 
@@ -47,6 +45,8 @@
         a->opaque_obj = NULL;   \
     }
 #define FH_ALLOPQOBJ(a,b)    a = (void *) malloc(b);
+
+#define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE);
 
 /*
  * using default hash found in cfu_hash (the perl one)
@@ -104,6 +104,7 @@ fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
     f->h_datalen = datalen;
     f->h_elements = 0;
     f->h_collision = 0;
+    f->h_magic = FH_MAGIC_ID;
     if (hash_function != NULL)
     {
         f->hash_function = hash_function;
@@ -138,6 +139,8 @@ int fh_setattr(fh_t *fh, int attr, int value)
 // get attributes in object
 int fh_getattr(fh_t *fh, int attr, int *value)
 {
+    FH_CHECK(fh);
+
     switch(attr)
     {
     case FH_ATTR_ELEMENT:
@@ -180,6 +183,7 @@ int fh_destroy(fh_t *fh)
     int i;
     register fh_slot *h_slot = NULL, *h_slot_current = NULL;
     f_hash *f_h = (f_hash *) fh->hash_table;
+    FH_CHECK(fh);
 
     _fh_lock(fh);
     // dealloco tutti gli slot della hash
@@ -224,6 +228,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
     int i;
     register fh_slot *h_slot, *new_h_slot;
     void *new_opaque_obj = NULL;
+    FH_CHECK(fh);
 
     // looking for slot
 
@@ -320,6 +325,7 @@ int fh_del(fh_t *fh, char *key)
 {
     int i;
     register fh_slot *h_slot, *prev_h_slot = NULL;
+    FH_CHECK(fh);
 
     // looking for slot
     _fh_lock(fh);
@@ -370,10 +376,11 @@ int fh_del(fh_t *fh, char *key)
 }
 
 // serch key and copy out opaque data
-int fh_search(fh_t *fh, char *key, void *block)
+int fh_search(fh_t *fh, char *key, void *block, int block_size)
 {
     int i;
     register fh_slot *h_slot;
+    FH_CHECK(fh);
 
     _fh_lock(fh);
 
@@ -403,7 +410,7 @@ int fh_search(fh_t *fh, char *key, void *block)
         }
         else if ( fh->h_datalen == -1 ) // copy string
         {
-            strcpy(block, h_slot->opaque_obj);
+            strncpy(block, h_slot->opaque_obj, block_size);
         }
         else
         {
@@ -447,7 +454,6 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot)
 // release a lock left from searchlock
 void fh_releaselock(fh_t *fh, int slot)
 {
-    // slot will be used in mt version
     _fh_unlock(fh);
 }
 
@@ -457,6 +463,7 @@ void fh_releaselock(fh_t *fh, int slot)
 int fh_scan_start(fh_t *fh, int start_index, void **slot)
 {
     int i;
+    FH_CHECK(fh);
 
     _fh_lock(fh);
 
@@ -481,6 +488,7 @@ int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block)
 {
     int i, el_not_found = 0;
     register fh_slot *h_slot;
+    FH_CHECK(fh);
 
     _fh_lock(fh);
     h_slot = fh->hash_table[(*index)].h_slot;

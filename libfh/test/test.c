@@ -115,7 +115,7 @@ int main( int argc, char **argv )
         sprintf(md.buffer, "%d", i);
 
         timing_start(t);
-        int err = fh_search(f, md.buffer, &md);
+        int err = fh_search(f, md.buffer, &md, sizeof(md));
         delta = timing_end(t);
         search_time = compute_average(search_time, i, delta);
 
@@ -252,7 +252,7 @@ int main( int argc, char **argv )
 
 
         timing_start(t);
-        int err = fh_search(f, md.buffer, md.checksum);
+        int err = fh_search(f, md.buffer, md.checksum, 128);
         delta = timing_end(t);
         search_time = compute_average(search_time, i, delta);
 
