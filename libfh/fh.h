@@ -64,17 +64,24 @@ struct _fh_t{
 };
 typedef struct _fh_t fh_t;
 
+// create fh : opaque_len = -1 means opaque is string (0 terminted)
 fh_t	*fh_create( int dim, int opaque_len, unsigned int (*hash_function)());
 int 	fh_setattr(fh_t *fh, int attr, int value);
 int 	fh_getattr(fh_t *fh, int attr, int *value);
 int 	fh_destroy(fh_t *fh );
+// inserts opaque pointed data allocating/copying it inside hastable
 int 	fh_insert(fh_t *fh, char *key, void *opaque);
+// remove entry, free data
 int 	fh_del(fh_t *fh, char *key );
+// search and copy out data
 int 	fh_search(fh_t *fh, char *key, void *opaque, int opaque_size);
+// search and return pointer to internal allocated data
 void *fh_get(fh_t *fh, char *key, int *error);
 
 int 	fh_scan_start(fh_t *fh, int pos, void **slot);
+// scans and copies out data
 int 	fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque, int opaque_size);
+// experimental
 void *fh_searchlock(fh_t *fh, char *key, int *slot);
 void	fh_releaselock(fh_t *fh, int slot);
 
