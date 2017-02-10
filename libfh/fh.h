@@ -19,7 +19,7 @@ extern "C" {
 #define FH_ELEMENT_NOT_FOUND	-2000 // hash element not found
 #define FH_DUPLICATED_ELEMENT	-3000 // duplicated key
 #define FH_NO_MEMORY	-4000 // malloc/calloc fails
-#define FH_DATALEN_MISMATCH	-6000 // datalen mismatch, still not used but will be usefull
+#define FH_WRONG_DATALEN	-6000 // wrong datalen for fh_search, use fh_get
 #define FH_DIM_INVALID	-7000 // bad dimension
 #define FH_BAD_ATTR		-9000 // bad attribute to get/setattr
 #define FH_SCAN_END		-100 // fh_scan_next hash reached end of hash
@@ -27,6 +27,8 @@ extern "C" {
 #define FH_ATTR_ELEMENT  100 // getattr elements in hash
 #define FH_ATTR_DIM	101 // getattr real dim of hashtable
 #define FH_ATTR_COLLISION	102 // getattr collisions in insert
+// attributes to set
+#define FH_SETATTR_DONTCOPYKEY	1 // for setattr : do not allocate and copy key
 
 /*  Local types                                 */
 
@@ -58,6 +60,7 @@ struct _fh_t{
 	int	 h_datalen; // opaque_obj size : -1 for strings, 0 for pointers, > 0 for data
 	int  h_elements; // elements in hash
 	int	 h_collision; // collisions during insert
+	int  h_attr; // holding attributes
 	unsigned int  (*hash_function)();
 	pthread_mutex_t	h_lock;
 	f_hash *hash_table;

@@ -9,7 +9,7 @@
 #include    "timing.h"
 
 
-#define HASH_SIZE 300000
+#define HASH_SIZE 600000
 
 // old hash function
 static unsigned int fh_default_hash_orig(char *name, int i)
@@ -59,7 +59,12 @@ int main( int argc, char **argv )
         size = atoi(argv[1]);
     }
 
-    printf("Testing fixed size opaque data\n");
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// fixed size opaque data
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    printf("------------ Testing fixed size opaque data hashtable \n");
 
     f = fh_create(size, sizeof(struct mydata), NULL);
 
@@ -199,15 +204,11 @@ int main( int argc, char **argv )
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// string opaque data
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    printf("Testing string opaque data --------------\n");
-
-
-    f = fh_create(size, -1, NULL);
-
-    if ( f == NULL )
+    printf("------------ Testing string opaque data \n");
+    if ((f = fh_create(size, -1, NULL)) == NULL )
     {
         printf("fh_create returned NULL\n");
     }
@@ -345,7 +346,105 @@ int main( int argc, char **argv )
             printf("error in fh_scan_next\n");
         }
     }
-
     fh_destroy(f);
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// pointer opaque data
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    printf("------------ Testing pointer opaque data \n");
+    if ((f = fh_create(size, 0, NULL)) == NULL )
+    {
+        printf("fh_create returned NULL\n");
+    }
+    real_size = 0;
+    if ( !fh_getattr(f, FH_ATTR_DIM, &real_size) )
+    {
+        printf("error in fh_getattr\n");
+    }
+    printf("hash real size %d\n", real_size);
+
+    insert_time = 0;
+    char checksum[HASH_SIZE/2][10];
+    char key[64];
+    for (int i = 0; i< HASH_SIZE/2; i++ )
+    {
+        sprintf(key, "%06d", i);
+        sprintf(checksum[i], "%0x", i);
+        // printf("generating checksum %s\n", md.checksum);
+
+        timing_start(t);
+        int err = fh_insert(f, key, checksum[i]);
+        delta = timing_end(t);
+        insert_time = compute_average(insert_time, i, delta);
+
+        if ( err < 0 )
+        {
+            printf("error %d in fh_insert\n", err);
+        }
+    }
+    printf("Average insert time in nanosecs : %.2f\n", insert_time);
+
+    if ( !fh_getattr(f, FH_ATTR_ELEMENT, &curr) )
+    {
+        printf("error in fh_getattr\n");
+    }
+    printf("hash elements %d\n", curr);
+
+    coll = 0;
+    if ( !fh_getattr(f, FH_ATTR_COLLISION, &coll) )
+    {
+        printf("error in fh_getattr\n");
+    }
+    printf("hash collision %d\n", coll);
+
+// search
+    printf("searching ..\n");
+    search_time = 0;
+    for (int i = 0; i< HASH_SIZE/2; i++ )
+    {
+        char cksum[128];
+        char *csum;
+        int err;
+        sprintf(key, "%06d", i);
+        sprintf(cksum, "%0x", i);
+
+        timing_start(t);
+        csum = fh_get(f, key, &err);
+        delta = timing_end(t);
+        search_time = compute_average(insert_time, i, delta);
+
+        if (csum == NULL)
+        {
+            printf("error %d in fh_get\n", err);
+        }
+
+        if ( strcmp(csum, cksum) != 0 )
+        {
+            printf("error in fh_get : ret %s != %d checksum %s\n", csum, i, cksum);
+        }
+    }
+    printf("Average access time in nanosecs : %.2f\n", search_time);
+
+    printf("deleting ..\n");
+    for (int i = 0; i< HASH_SIZE/2; i++ )
+    {
+        sprintf(md.buffer, "%06d", i);
+        int err = fh_del(f, md.buffer);
+        if ( err < 0 )
+        {
+            printf("error %d in fh_del\n", err);
+        }
+    }
+
+    if ( !fh_getattr(f, FH_ATTR_ELEMENT, &curr) )
+    {
+        printf("error in fh_getattr\n");
+    }
+    printf("hash elements %d\n", curr);
+
+
+    fh_destroy(f);
+    printf("------------ end of tests \n");
 }

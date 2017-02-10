@@ -105,6 +105,7 @@ fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
     f->h_elements = 0;
     f->h_collision = 0;
     f->h_magic = FH_MAGIC_ID;
+    f->h_attr = 0;
     if (hash_function != NULL)
     {
         f->hash_function = hash_function;
@@ -133,6 +134,17 @@ static void _fh_unlock(fh_t *fh)
 // set attributes in object
 int fh_setattr(fh_t *fh, int attr, int value)
 {
+    FH_CHECK(fh);
+
+    switch(attr)
+    {
+    case FH_SETATTR_DONTCOPYKEY:
+        fh->h_attr &= FH_SETATTR_DONTCOPYKEY;
+        break;
+    default:
+        return(FH_BAD_ATTR);
+    }
+
     return (1);
 }
 
@@ -186,27 +198,23 @@ int fh_destroy(fh_t *fh)
     FH_CHECK(fh);
 
     _fh_lock(fh);
-    // dealloco tutti gli slot della hash
+    // remove all entries
     for (i = 0; i < fh->h_dim; i++)
     {
-
         h_slot = f_h[i].h_slot;
-
         while (h_slot != NULL)
         {
-            // elimino lo slot
-
             h_slot_current = h_slot;
             h_slot = h_slot->next;
 
-            //
-            // free dell'oggetto opaco e della struttura h_slot
-
-            // l'opaco lo libero solo se != NULL
-            if ( h_slot_current->opaque_obj != NULL )
+            // free opaque object only if was allocated
+            if ((h_slot_current->opaque_obj) && (fh->h_datalen != 0))
                 free(h_slot_current->opaque_obj);
-
-            free(h_slot_current->key);
+            if ( (fh->h_attr & FH_SETATTR_DONTCOPYKEY) == 0 )
+            {
+                // we copy key so we have to free them
+                free(h_slot_current->key);
+            }
             free(h_slot_current);
         }
     }
@@ -267,16 +275,24 @@ int fh_insert(fh_t *fh, char *key, void *block)
     }
 
     // allocate and copy key
-    int key_len = strlen(key);
-    new_h_slot->key = (char *) malloc(key_len + 1);
-    if (new_h_slot->key == NULL)
+    if ( fh->h_attr & FH_SETATTR_DONTCOPYKEY )
     {
-        free(new_h_slot);
-        _fh_unlock(fh);
-        return (FH_NO_MEMORY);
+        new_h_slot->key = key;
     }
+    else
+    {
 
-    strcpy(new_h_slot->key, key);
+        int key_len = strlen(key);
+        new_h_slot->key = (char *) malloc(key_len + 1);
+        if (new_h_slot->key == NULL)
+        {
+            free(new_h_slot);
+            _fh_unlock(fh);
+            return (FH_NO_MEMORY);
+        }
+
+        strcpy(new_h_slot->key, key);
+    }
 
     // allocate and copy opaque object
 
@@ -294,6 +310,10 @@ int fh_insert(fh_t *fh, char *key, void *block)
                 return (FH_NO_MEMORY);
             }
             memcpy(new_opaque_obj, block, fh->h_datalen);
+        }
+        else if ( fh->h_datalen == 0 ) // datalen 0 means just copy opaque pointers
+        {
+            new_opaque_obj = block;
         }
         else if ( fh->h_datalen == -1 ) // datalen = -1 => opaque is string
         {
@@ -359,9 +379,15 @@ int fh_del(fh_t *fh, char *key)
 
     // cleanup only for fixed size of string opaque object
     if ((h_slot->opaque_obj) && (fh->h_datalen != 0))
+    {
         free(h_slot->opaque_obj);
+    }
 
-    free(h_slot->key);
+    if ( (fh->h_attr & FH_SETATTR_DONTCOPYKEY) == 0 )
+    {
+        free(h_slot->key);
+    }
+
     free(h_slot);
     h_slot = NULL;
 
@@ -372,11 +398,18 @@ int fh_del(fh_t *fh, char *key)
 }
 
 // serch key and copy out opaque data
+// should not be called with datalen = 0 (no way to return data)
 int fh_search(fh_t *fh, char *key, void *block, int block_size)
 {
     int i;
     register fh_slot *h_slot;
     FH_CHECK(fh);
+
+    if ( fh->h_datalen == 0 )
+    {
+        // do not use this call when datalen is 0
+        return (FH_WRONG_DATALEN);
+    }
 
     _fh_lock(fh);
 
@@ -505,6 +538,7 @@ int fh_scan_start(fh_t *fh, int start_index, void **slot)
 
 // takes index and slot as point of last scan and starting from there returns next entry (copies key and opaque)
 // if index and slot are not valida anymore return FH_ELEMENT_NOT_FOUND but continues
+// don't use if datalen = 0 ... won't return opaque pointer
 int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int block_size)
 {
     int i, el_not_found = 0;
@@ -552,6 +586,7 @@ int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int 
             {
                 strncpy(block, h_slot->opaque_obj, block_size);
             }
+            // do nothing when datalen = 0
         }
 
         // return next slot
