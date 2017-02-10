@@ -114,37 +114,38 @@ int main( int argc, char **argv )
 
     // search
     printf("searching ..\n");
-
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+    for (int j = 1; j <10; j++)
     {
-        sprintf(md.buffer, "%d", i);
-        struct mydata *m;
-
-        timing_start(t);
-        int err = fh_search(f, md.buffer, &md, sizeof(md));
-        delta = timing_end(t);
-        search_time = compute_average(search_time, i, delta);
-
-        if ( err < 0 )
+        for (int i = 0; i< HASH_SIZE/2; i++ )
         {
-            printf("error %d in fh_search\n", err);
-        }
-        if ( md.i != i)
-        {
-            printf("error in search md.%d != %d\n", md.i, i);
-        }
+            sprintf(md.buffer, "%d", i);
+            struct mydata *m;
 
-        // use also fh_get
-        m = fh_get(f, md.buffer, &err);
-        if ( m == NULL)
-        {
-            printf("error %d in fh_get\n", err);
-        }
-        if ( m->i != i)
-        {
-            printf("error in fh_get m->%d != %d\n", m->i, i);
-        }
+            timing_start(t);
+            int err = fh_search(f, md.buffer, &md, sizeof(md));
+            delta = timing_end(t);
+            search_time = compute_average(search_time, i*j, delta);
 
+            if ( err < 0 )
+            {
+                printf("error %d in fh_search\n", err);
+            }
+            if ( md.i != i)
+            {
+                printf("error in search md.%d != %d\n", md.i, i);
+            }
+
+            // use also fh_get
+            m = fh_get(f, md.buffer, &err);
+            if ( m == NULL)
+            {
+                printf("error %d in fh_get\n", err);
+            }
+            if ( m->i != i)
+            {
+                printf("error in fh_get m->%d != %d\n", m->i, i);
+            }
+        }
     }
 
     printf("Average access time in nanosecs : %.2f\n", search_time);
@@ -257,38 +258,40 @@ int main( int argc, char **argv )
 // search
     printf("searching ..\n");
     search_time = 0;
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+    for (int j = 0; j <10; j++)
     {
-        char cksum[128];
-        char *csum;
-        sprintf(md.buffer, "%06d", i);
-        sprintf(cksum, "%0x", i);
-
-        timing_start(t);
-        int err = fh_search(f, md.buffer, md.checksum, 128);
-        delta = timing_end(t);
-        search_time = compute_average(search_time, i, delta);
-
-        if ( err < 0 )
+        for (int i = 0; i< HASH_SIZE/2; i++ )
         {
-            printf("error %d in fh_search\n", err);
-        }
-        if ( strcmp(cksum, md.checksum) != 0 )
-        {
-            printf("error in search md.checksum %s != %d checksum %s\n", md.checksum, i, cksum);
-        }
+            char cksum[128];
+            char *csum;
+            sprintf(md.buffer, "%06d", i);
+            sprintf(cksum, "%0x", i);
 
-        csum = fh_get(f, md.buffer, &err);
-        if (csum == NULL)
-        {
-            printf("error %d in fh_get\n", err);
-        }
+            timing_start(t);
+            int err = fh_search(f, md.buffer, md.checksum, 128);
+            delta = timing_end(t);
+            search_time = compute_average(search_time, i*j, delta);
 
-        if ( strcmp(csum, cksum) != 0 )
-        {
-            printf("error in fh_get : ret %s != %d checksum %s\n", csum, i, cksum);
-        }
+            if ( err < 0 )
+            {
+                printf("error %d in fh_search\n", err);
+            }
+            if ( strcmp(cksum, md.checksum) != 0 )
+            {
+                printf("error in search md.checksum %s != %d checksum %s\n", md.checksum, i, cksum);
+            }
 
+            csum = fh_get(f, md.buffer, &err);
+            if (csum == NULL)
+            {
+                printf("error %d in fh_get\n", err);
+            }
+
+            if ( strcmp(csum, cksum) != 0 )
+            {
+                printf("error in fh_get : ret %s != %d checksum %s\n", csum, i, cksum);
+            }
+        }
     }
     printf("Average access time in nanosecs : %.2f\n", search_time);
 
@@ -402,27 +405,31 @@ int main( int argc, char **argv )
 // search
     printf("searching ..\n");
     search_time = 0;
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+
+    for (int j = 0; j <10; j++)
     {
-        char cksum[128];
-        char *csum;
-        int err;
-        sprintf(key, "%06d", i);
-        sprintf(cksum, "%0x", i);
-
-        timing_start(t);
-        csum = fh_get(f, key, &err);
-        delta = timing_end(t);
-        search_time = compute_average(insert_time, i, delta);
-
-        if (csum == NULL)
+        for (int i = 0; i< HASH_SIZE/2; i++ )
         {
-            printf("error %d in fh_get\n", err);
-        }
+            char cksum[128];
+            char *csum;
+            int err;
+            sprintf(key, "%06d", i);
+            sprintf(cksum, "%0x", i);
 
-        if ( strcmp(csum, cksum) != 0 )
-        {
-            printf("error in fh_get : ret %s != %d checksum %s\n", csum, i, cksum);
+            timing_start(t);
+            csum = fh_get(f, key, &err);
+            delta = timing_end(t);
+            search_time = compute_average(search_time, i*j, delta);
+
+            if (csum == NULL)
+            {
+                printf("error %d in fh_get\n", err);
+            }
+
+            if ( strcmp(csum, cksum) != 0 )
+            {
+                printf("error in fh_get : ret %s != %d checksum %s\n", csum, i, cksum);
+            }
         }
     }
     printf("Average access time in nanosecs : %.2f\n", search_time);
