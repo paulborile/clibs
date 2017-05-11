@@ -1,7 +1,9 @@
 # chash
 C Hastable
 
-libfh : fast hash, basic multi threading support, key is only string and is always copied inside (unless FH_SETATTR_DONTCOPYKEY is set), opaque data is always allocated and copied inside hash and can be string (datalen = -1), fixed lenght (datalen = sizeof data) or datalen = 0 just copies void pointer (still under implementation). Sample code :
+libfh : fast hash, basic multi threading support, key is only string and is always copied inside (unless FH_SETATTR_DONTCOPYKEY is set), 
+opaque data is allocated and copied inside hash and can be string (datalen = FH_DATALEN_STRING), fixed lenght (datalen = sizeof data) or datalen = FH_DATALEN_VOIDP just copies void pointer.
+Sample code :
 
 ```
 #include <stdio.h>
@@ -36,5 +38,3 @@ To compile :
 cd libfh ; make -f libfh.mk clean lib
 ```
 
-
-libmtfh : multi thread optimized fast hash, still to be uploaded
