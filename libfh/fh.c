@@ -44,10 +44,6 @@
 
 #define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE);
 
-// datalen values
-#define FH_DATALEN_STRING	-1
-#define FH_DATALEN_VOIDP		0
-
 /*
  * using default hash found in cfu_hash (the perl one)
  */
