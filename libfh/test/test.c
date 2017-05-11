@@ -9,7 +9,7 @@
 #include    "timing.h"
 
 
-#define HASH_SIZE 600000
+#define HASH_SIZE 60000
 
 // old hash function
 static unsigned int fh_default_hash_orig(char *name, int i)
@@ -209,7 +209,7 @@ int main( int argc, char **argv )
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     printf("------------ Testing string opaque data \n");
-    if ((f = fh_create(size, -1, NULL)) == NULL )
+    if ((f = fh_create(size, FH_DATALEN_STRING, NULL)) == NULL )
     {
         printf("fh_create returned NULL\n");
     }
@@ -357,7 +357,7 @@ int main( int argc, char **argv )
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     printf("------------ Testing pointer opaque data \n");
-    if ((f = fh_create(size, 0, NULL)) == NULL )
+    if ((f = fh_create(size, FH_DATALEN_VOIDP, NULL)) == NULL )
     {
         printf("fh_create returned NULL\n");
     }
