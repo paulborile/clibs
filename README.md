@@ -38,3 +38,36 @@ To compile :
 cd libfh ; make -f libfh.mk clean lib
 ```
 
+Performance : run on Intel Core i7-4710HQ CPU @ 2.50GHz
+
+```
+------------ Testing fixed size opaque data hashtable 
+hash real size 65536
+Average insert time in nanosecs : 230.40
+hash elements 30000
+hash collision 6023
+searching ..
+Average access time in nanosecs : 154.05
+deleting ..
+hash elements 0
+------------ Testing string opaque data 
+hash real size 65536
+Average insert time in nanosecs : 155.98
+hash elements 30000
+hash collision 6005
+searching ..
+Average access time in nanosecs : 111.69
+deleting ..
+hash elements 0
+------------ Testing void pointer opaque data 
+hash real size 65536
+Average insert time in nanosecs : 147.02
+hash elements 30000
+hash collision 6005
+searching ..
+Average access time in nanosecs : 81.54
+deleting ..
+hash elements 0
+------------ end of tests 
+```
+
