@@ -7,19 +7,15 @@
    1. Redistributions of source code must retain the above copyright
    notice, this list of conditions and the following disclaimer.
    2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-   3. All advertising materials mentioning features or use of this software
-   must display the following acknowledgement:
-   This product includes software developed by the <organization>.
-   4. Neither the name of the <organization> nor the
+   notice
+   3. Neither the name of the Paul Stephen Borile nor the
    names of its contributors may be used to endorse or promote products
    derived from this software without specific prior written permission.
 
-   THIS SOFTWARE IS PROVIDED BY <COPYRIGHT HOLDER> ''AS IS'' AND ANY
+   THIS SOFTWARE IS PROVIDED BY Paul Stephen Borile ''AS IS'' AND ANY
    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+   DISCLAIMED. IN NO EVENT SHALL Paul Stephen Borile BE LIABLE FOR ANY
    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -47,6 +43,10 @@
 #define FH_ALLOPQOBJ(a,b)    a = (void *) malloc(b);
 
 #define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE);
+
+// datalen values
+#define FH_DATALEN_STRING	-1
+#define FH_DATALEN_VOIDP		0
 
 /*
  * using default hash found in cfu_hash (the perl one)
@@ -76,6 +76,12 @@ static unsigned int fh_hash_size(unsigned int s) {
 }
 
 // create hashtable object and init all data
+// datalen = -1 : opaque is a string so it spave for it will be allocated with malloc
+// and it will be copied with strcpy.
+// datalen > 0 : opaque is a fixed size data structure (struct?); will be allocated with malloc
+// and copied with memcpy
+// datalen = 0 : opaque is threated as a void pointer, no allocation is done, pointer value is kept in hashtable opa	que data.
+
 fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
 {
     fh_t *f = NULL;
@@ -311,11 +317,11 @@ int fh_insert(fh_t *fh, char *key, void *block)
             }
             memcpy(new_opaque_obj, block, fh->h_datalen);
         }
-        else if ( fh->h_datalen == 0 ) // datalen 0 means just copy opaque pointers
+        else if ( fh->h_datalen == FH_DATALEN_VOIDP ) // datalen 0 means just copy opaque pointers
         {
             new_opaque_obj = block;
         }
-        else if ( fh->h_datalen == -1 ) // datalen = -1 => opaque is string
+        else if ( fh->h_datalen == FH_DATALEN_STRING ) // datalen = -1 => opaque is string
         {
             int len = strlen(block);
             FH_ALLOPQOBJ(new_opaque_obj, len + 1);
@@ -378,7 +384,7 @@ int fh_del(fh_t *fh, char *key)
     }
 
     // cleanup only for fixed size of string opaque object
-    if ((h_slot->opaque_obj) && (fh->h_datalen != 0))
+    if ((h_slot->opaque_obj) && (fh->h_datalen != FH_DATALEN_VOIDP))
     {
         free(h_slot->opaque_obj);
     }
@@ -398,14 +404,14 @@ int fh_del(fh_t *fh, char *key)
 }
 
 // serch key and copy out opaque data
-// should not be called with datalen = 0 (no way to return data)
+// should not be called with datalen = FH_DATALEN_VOIDP (no way to return data)
 int fh_search(fh_t *fh, char *key, void *block, int block_size)
 {
     int i;
     register fh_slot *h_slot;
     FH_CHECK(fh);
 
-    if ( fh->h_datalen == 0 )
+    if ( fh->h_datalen == FH_DATALEN_VOIDP )
     {
         // do not use this call when datalen is 0
         return (FH_WRONG_DATALEN);
@@ -437,7 +443,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
         {
             memcpy(block, h_slot->opaque_obj, fh->h_datalen);
         }
-        else if ( fh->h_datalen == -1 ) // copy string
+        else if ( fh->h_datalen == FH_DATALEN_STRING ) // copy string
         {
             strncpy(block, h_slot->opaque_obj, block_size);
         }
@@ -447,7 +453,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     return (i);
 }
 
-// search the hash end return poinbter to the opaque_obj or NULL
+// search the hash and return pointer to the opaque_obj or NULL
 void *fh_get(fh_t *fh, char *key, int *error)
 {
     int i;
@@ -505,7 +511,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot)
     return (h_slot->opaque_obj);
 }
 
-// release a lock left from searchlock
+// release a lock left from fh_searchlock
 void fh_releaselock(fh_t *fh, int slot)
 {
     _fh_unlock(fh);
@@ -582,7 +588,7 @@ int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int 
             {
                 memcpy(block, h_slot->opaque_obj, fh->h_datalen);
             }
-            else if ( fh->h_datalen == -1 ) // copy string
+            else if ( fh->h_datalen == FH_DATALEN_STRING ) // copy string
             {
                 strncpy(block, h_slot->opaque_obj, block_size);
             }

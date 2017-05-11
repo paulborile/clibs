@@ -30,6 +30,10 @@ extern "C" {
 // attributes to set
 #define FH_SETATTR_DONTCOPYKEY	1 // for setattr : do not allocate and copy key
 
+// datalen values
+#define FH_DATALEN_STRING	-1
+#define FH_DATALEN_VOIDP		0
+
 /*  Local types                                 */
 
 /** single structures used to contain data */
