@@ -132,12 +132,12 @@ fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
 
 static void _fh_lock(fh_t *fh, int slot)
 {
-    pthread_mutex_lock(&(fh->h_lock[fh->h_dim % slot]));
+    pthread_mutex_lock(&(fh->h_lock[slot % FH_MAX_CONCURRENT_OPERATIONS]));
 }
 
 static void _fh_unlock(fh_t *fh, int slot)
 {
-    pthread_mutex_unlock(&(fh->h_lock[fh->h_dim % slot]));
+    pthread_mutex_unlock(&(fh->h_lock[slot % FH_MAX_CONCURRENT_OPERATIONS]));
 }
 
 static void _fh_lock_all(fh_t *fh)
@@ -356,8 +356,9 @@ int fh_insert(fh_t *fh, char *key, void *block)
     fh->hash_table[i].h_slot = new_h_slot;
     new_h_slot->next = old_first_h_slot;
 
-    (fh->h_elements)++;
     _fh_unlock(fh, i);
+
+    (fh->h_elements)++;
 
     return (i);
 }
@@ -417,8 +418,9 @@ int fh_del(fh_t *fh, char *key)
     free(h_slot);
     h_slot = NULL;
 
-    (fh->h_elements)--;
     _fh_unlock(fh, i);
+
+    (fh->h_elements)--;
 
     return (i);
 }
