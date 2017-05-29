@@ -34,6 +34,12 @@ extern "C" {
 #define FH_DATALEN_STRING	-1
 #define FH_DATALEN_VOIDP		0
 
+/*
+ * Concurrency
+ */
+
+#define FH_MAX_CONCURRENT_OPERATIONS 64
+
 /*  Local types                                 */
 
 /** single structures used to contain data */
@@ -66,7 +72,7 @@ struct _fh_t{
 	int	 h_collision; // collisions during insert
 	int  h_attr; // holding attributes
 	unsigned int  (*hash_function)();
-	pthread_mutex_t	h_lock;
+	pthread_mutex_t	h_lock[FH_MAX_CONCURRENT_OPERATIONS];
 	f_hash *hash_table;
 };
 typedef struct _fh_t fh_t;

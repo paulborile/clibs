@@ -44,6 +44,7 @@
 
 #define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE);
 
+
 /*
  * using default hash found in cfu_hash (the perl one)
  */
@@ -108,6 +109,7 @@ fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
     f->h_collision = 0;
     f->h_magic = FH_MAGIC_ID;
     f->h_attr = 0;
+
     if (hash_function != NULL)
     {
         f->hash_function = hash_function;
@@ -116,21 +118,43 @@ fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
     {
         f->hash_function = fh_default_hash;
     }
-    pthread_mutex_init(&(f->h_lock), NULL);
+
+    // init mutexes
+    for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
+    {
+        pthread_mutex_init(&(f->h_lock[i]), NULL);
+    }
 
     f->hash_table = hash;
 
     return (f);
 }
 
-static void _fh_lock(fh_t *fh)
+static void _fh_lock(fh_t *fh, int slot)
 {
-    pthread_mutex_lock(&(fh->h_lock));
+    pthread_mutex_lock(&(fh->h_lock[fh->h_dim % slot]));
 }
 
-static void _fh_unlock(fh_t *fh)
+static void _fh_unlock(fh_t *fh, int slot)
 {
-    pthread_mutex_unlock(&(fh->h_lock));
+    pthread_mutex_unlock(&(fh->h_lock[fh->h_dim % slot]));
+}
+
+static void _fh_lock_all(fh_t *fh)
+{
+    int i;
+    for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
+    {
+        pthread_mutex_lock(&(fh->h_lock[i]));
+    }
+}
+
+static void _fh_unlock_all(fh_t *fh)
+{
+    for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
+    {
+        pthread_mutex_unlock(&(fh->h_lock[i]));
+    }
 }
 
 // set attributes in object
@@ -199,7 +223,7 @@ int fh_destroy(fh_t *fh)
     f_hash *f_h = (f_hash *) fh->hash_table;
     FH_CHECK(fh);
 
-    _fh_lock(fh);
+    _fh_lock_all(fh);
     // remove all entries
     for (i = 0; i < fh->h_dim; i++)
     {
@@ -223,7 +247,7 @@ int fh_destroy(fh_t *fh)
 
     // dealloco hash table
     free(fh->hash_table);
-    _fh_unlock(fh);
+    _fh_unlock_all(fh);
 
     // dealloco struct hash info
     free(fh);
@@ -242,8 +266,8 @@ int fh_insert(fh_t *fh, char *key, void *block)
 
     // looking for slot
 
-    _fh_lock(fh);
     i = fh->hash_function(key, fh->h_dim);
+    _fh_lock(fh, i);
 
     assert(i<fh->h_dim);
 
@@ -261,7 +285,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
         if ( strcmp(h_slot->key, key) == 0 )
         {
             // we have a duplicate key
-            _fh_unlock(fh);
+            _fh_unlock(fh, i);
             return (FH_DUPLICATED_ELEMENT);
         }
         h_slot = h_slot->next;
@@ -272,7 +296,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
 
     if (new_h_slot == NULL)
     {
-        _fh_unlock(fh);
+        _fh_unlock(fh, i);
         return (FH_NO_MEMORY);
     }
 
@@ -289,7 +313,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
         if (new_h_slot->key == NULL)
         {
             free(new_h_slot);
-            _fh_unlock(fh);
+            _fh_unlock(fh, i);
             return (FH_NO_MEMORY);
         }
 
@@ -308,7 +332,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
             {
                 free(new_h_slot->key);
                 free(new_h_slot);
-                _fh_unlock(fh);
+                _fh_unlock(fh, i);
                 return (FH_NO_MEMORY);
             }
             memcpy(new_opaque_obj, block, fh->h_datalen);
@@ -333,7 +357,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
     new_h_slot->next = old_first_h_slot;
 
     (fh->h_elements)++;
-    _fh_unlock(fh);
+    _fh_unlock(fh, i);
 
     return (i);
 }
@@ -346,9 +370,9 @@ int fh_del(fh_t *fh, char *key)
     FH_CHECK(fh);
 
     // looking for slot
-    _fh_lock(fh);
 
     i = fh->hash_function(key, fh->h_dim);
+    _fh_lock(fh, i);
 
     assert(i<fh->h_dim);
 
@@ -364,7 +388,7 @@ int fh_del(fh_t *fh, char *key)
 
     if ( h_slot == NULL )
     {
-        _fh_unlock(fh);
+        _fh_unlock(fh, i);
         return (FH_ELEMENT_NOT_FOUND);
     }
 
@@ -394,7 +418,7 @@ int fh_del(fh_t *fh, char *key)
     h_slot = NULL;
 
     (fh->h_elements)--;
-    _fh_unlock(fh);
+    _fh_unlock(fh, i);
 
     return (i);
 }
@@ -413,9 +437,9 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
         return (FH_WRONG_DATALEN);
     }
 
-    _fh_lock(fh);
 
     i = fh->hash_function(key, fh->h_dim);
+    _fh_lock(fh, i);
 
     assert(i<fh->h_dim);
 
@@ -428,7 +452,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
 
     if ( h_slot == NULL )
     {
-        _fh_unlock(fh);
+        _fh_unlock(fh, i);
         return (FH_ELEMENT_NOT_FOUND);
     }
 
@@ -445,7 +469,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
         }
     }
 
-    _fh_unlock(fh);
+    _fh_unlock(fh, i);
     return (i);
 }
 
@@ -455,8 +479,8 @@ void *fh_get(fh_t *fh, char *key, int *error)
     int i;
     register fh_slot *h_slot;
 
-    _fh_lock(fh);
     i = fh->hash_function(key, fh->h_dim);
+    _fh_lock(fh, i);
 
     assert(i<fh->h_dim);
 
@@ -470,10 +494,10 @@ void *fh_get(fh_t *fh, char *key, int *error)
     if ( h_slot == NULL )
     {
         *error = FH_ELEMENT_NOT_FOUND;
-        _fh_unlock(fh);
+        _fh_unlock(fh, i);
         return (NULL);
     }
-    _fh_unlock(fh);
+    _fh_unlock(fh, i);
     return (h_slot->opaque_obj);
 }
 
@@ -485,8 +509,8 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot)
     int i;
     register fh_slot *h_slot;
 
-    _fh_lock(fh);
     i = fh->hash_function(key, fh->h_dim);
+    _fh_lock(fh, i);
 
     assert(i<fh->h_dim);
 
@@ -500,7 +524,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot)
     if ( h_slot == NULL )
     {
         *slot = FH_ELEMENT_NOT_FOUND;
-        _fh_unlock(fh);
+        _fh_unlock(fh, i);
         return (NULL);
     }
     (*slot) = i;
@@ -510,7 +534,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot)
 // release a lock left from fh_searchlock
 void fh_releaselock(fh_t *fh, int slot)
 {
-    _fh_unlock(fh);
+    _fh_unlock(fh, slot);
 }
 
 
@@ -521,20 +545,20 @@ int fh_scan_start(fh_t *fh, int start_index, void **slot)
     int i;
     FH_CHECK(fh);
 
-    _fh_lock(fh);
+    // _fh_lock(fh); TODO which concurrency strategy ??
 
     for (i = start_index; i < fh->h_dim; i++)
     {
         if (fh->hash_table[i].h_slot != NULL)
         {
             *slot = fh->hash_table[i].h_slot;
-            _fh_unlock(fh);
+            // _fh_unlock(fh);
             return(i);
         }
     }
     // empty hashtable or start_index points to another index in the hashtable and from that point on no data is present.
     *slot = NULL;
-    _fh_unlock(fh);
+    // _fh_unlock(fh);
     return (FH_ELEMENT_NOT_FOUND);
 }
 
@@ -547,7 +571,7 @@ int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int 
     register fh_slot *h_slot;
     FH_CHECK(fh);
 
-    _fh_lock(fh);
+    // _fh_lock(fh); TODO which concurrency strategy ??
     h_slot = fh->hash_table[(*index)].h_slot;
     while ((h_slot != NULL) && (h_slot != (fh_slot *)(*slot) ))
     {
@@ -566,7 +590,7 @@ int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int 
             {
                 (*index) = i;
                 *slot = fh->hash_table[i].h_slot;
-                _fh_unlock(fh);
+                // _fh_unlock(fh);
 
                 return (FH_ELEMENT_NOT_FOUND);
             }
@@ -597,7 +621,7 @@ int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int 
         {
             // same index
             *slot = h_slot->next;
-            _fh_unlock(fh);
+            // _fh_unlock(fh);
             return (1);
         }
 
@@ -610,12 +634,12 @@ int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int 
             {
                 *slot = fh->hash_table[i].h_slot;
                 (*index) = i;
-                _fh_unlock(fh);
+                // _fh_unlock(fh);
                 return (1);
             }
         }
     }
-    _fh_unlock(fh);
+    // _fh_unlock(fh);
 
     // end of hash
     *slot = NULL;
