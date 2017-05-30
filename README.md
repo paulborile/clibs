@@ -36,6 +36,7 @@ To compile :
 
 ```
 cd libfh ; make -f libfh.mk clean lib
+cd test ; make ; ./fhtest <hashsize>
 ```
 
 Performance : run on Intel Core i7-4710HQ CPU @ 2.50GHz
