@@ -484,7 +484,7 @@ int main( int argc, char **argv )
         printf("fh_create returned NULL\n");
     }
 
-#define MAX_THREADS 8
+#define MAX_THREADS 16
 
     pthread_t tid[MAX_THREADS];
 
@@ -529,7 +529,7 @@ void *string_thread_test(fh_t *f)
     int tid = pthread_self();
     srand(tid);
 
-    printf("------------ %ld - Testing string opaque data \n", tid);
+    printf("------------ %d - Testing string opaque data \n", tid);
 
     int real_size = 0;
 
@@ -596,7 +596,7 @@ void *string_thread_test(fh_t *f)
 
             if ( strcmp(cksum, md.checksum) != 0 )
             {
-                printf("thread %ld, error in search md.checksum %s != %d checksum %s (fh_search ret %d)\n",
+                printf("thread %d, error in search md.checksum %s != %d checksum %s (fh_search ret %d)\n",
                        tid, md.checksum, ii, cksum, err);
                 return(0);
             }
