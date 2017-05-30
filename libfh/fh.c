@@ -105,8 +105,13 @@ fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
 
     f->h_dim = real_dim;
     f->h_datalen = datalen;
+
+    // init elements/collisions critical region mutex
+    pthread_mutex_init(&(f->fh_lock), NULL);
+
     f->h_elements = 0;
     f->h_collision = 0;
+
     f->h_magic = FH_MAGIC_ID;
     f->h_attr = 0;
 
@@ -119,7 +124,7 @@ fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
         f->hash_function = fh_default_hash;
     }
 
-    // init mutexes
+    // init hastable critical region mutexes
     for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
     {
         pthread_mutex_init(&(f->h_lock[i]), NULL);
@@ -138,6 +143,16 @@ static void _fh_lock(fh_t *fh, int slot)
 static void _fh_unlock(fh_t *fh, int slot)
 {
     pthread_mutex_unlock(&(fh->h_lock[slot % FH_MAX_CONCURRENT_OPERATIONS]));
+}
+
+static void _fh_lock_fh(fh_t *fh)
+{
+    pthread_mutex_lock(&(fh->fh_lock));
+}
+
+static void _fh_unlock_fh(fh_t *fh)
+{
+    pthread_mutex_unlock(&(fh->fh_lock));
 }
 
 static void _fh_lock_all(fh_t *fh)
@@ -358,7 +373,9 @@ int fh_insert(fh_t *fh, char *key, void *block)
 
     _fh_unlock(fh, i);
 
+    _fh_lock_fh(fh);
     (fh->h_elements)++;
+    _fh_unlock_fh(fh);
 
     return (i);
 }
@@ -420,7 +437,9 @@ int fh_del(fh_t *fh, char *key)
 
     _fh_unlock(fh, i);
 
+    _fh_lock_fh(fh);
     (fh->h_elements)--;
+    _fh_unlock_fh(fh);
 
     return (i);
 }

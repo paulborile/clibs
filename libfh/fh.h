@@ -68,6 +68,7 @@ struct _fh_t{
 	int	 h_magic;
 	int  h_dim; // hash size
 	int	 h_datalen; // opaque_obj size : -1 for strings, 0 for pointers, > 0 for data
+	pthread_mutex_t fh_lock;
 	int  h_elements; // elements in hash
 	int	 h_collision; // collisions during insert
 	int  h_attr; // holding attributes
