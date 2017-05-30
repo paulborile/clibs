@@ -38,10 +38,13 @@ double  compute_average(double current_avg, int count, int new_value)
     }
 }
 
+void *string_thread_test(fh_t *f);
+
+int size = HASH_SIZE;
+
 int main( int argc, char **argv )
 {
     fh_t *f;
-    int size = HASH_SIZE;
     char mykey[64];
     struct mydata
     {
@@ -81,7 +84,7 @@ int main( int argc, char **argv )
     }
     printf("hash real size %d\n", real_size);
 
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+    for (int i = 0; i< size/2; i++ )
     {
         sprintf(md.buffer, "%d", i);
         md.i = i;
@@ -116,7 +119,7 @@ int main( int argc, char **argv )
     printf("searching ..\n");
     for (int j = 1; j <10; j++)
     {
-        for (int i = 0; i< HASH_SIZE/2; i++ )
+        for (int i = 0; i< size/2; i++ )
         {
             sprintf(md.buffer, "%d", i);
             struct mydata *m;
@@ -151,7 +154,7 @@ int main( int argc, char **argv )
     printf("Average access time in nanosecs : %.2f\n", search_time);
 
     printf("deleting ..\n");
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+    for (int i = 0; i< size/2; i++ )
     {
         sprintf(md.buffer, "%d", i);
         int err = fh_del(f, md.buffer);
@@ -177,7 +180,7 @@ int main( int argc, char **argv )
     }
 
     // fill it
-    for (int i = 0; i< HASH_SIZE/10; i++ )
+    for (int i = 0; i< size/10; i++ )
     {
         sprintf(md.buffer, "%d", i);
         md.i = i;
@@ -223,7 +226,7 @@ int main( int argc, char **argv )
     printf("hash real size %d\n", real_size);
 
     insert_time = 0;
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+    for (int i = 0; i< size/2; i++ )
     {
         sprintf(md.buffer, "%06d", i);
         sprintf(md.checksum, "%0x", i);
@@ -260,7 +263,7 @@ int main( int argc, char **argv )
     search_time = 0;
     for (int j = 0; j <10; j++)
     {
-        for (int i = 0; i< HASH_SIZE/2; i++ )
+        for (int i = 0; i< size/2; i++ )
         {
             char cksum[128];
             char *csum;
@@ -296,7 +299,7 @@ int main( int argc, char **argv )
     printf("Average access time in nanosecs : %.2f\n", search_time);
 
     printf("deleting ..\n");
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+    for (int i = 0; i< size/2; i++ )
     {
         sprintf(md.buffer, "%06d", i);
         int err = fh_del(f, md.buffer);
@@ -322,7 +325,7 @@ int main( int argc, char **argv )
     }
 
 // fill it
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+    for (int i = 0; i< size/2; i++ )
     {
         sprintf(md.buffer, "%06d", i);
         sprintf(md.checksum, "%0x", i);
@@ -369,16 +372,16 @@ int main( int argc, char **argv )
     printf("hash real size %d\n", real_size);
 
     insert_time = 0;
-    char checksum[HASH_SIZE/2][10];
     char key[64];
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+    for (int i = 0; i< size/2; i++ )
     {
         sprintf(key, "%06d", i);
-        sprintf(checksum[i], "%0x", i);
+        char *checksum = malloc(64);
+        sprintf(checksum, "%0x", i);
         // printf("generating checksum %s\n", md.checksum);
 
         timing_start(t);
-        int err = fh_insert(f, key, checksum[i]);
+        int err = fh_insert(f, key, checksum);
         delta = timing_end(t);
         insert_time = compute_average(insert_time, i, delta);
 
@@ -408,7 +411,7 @@ int main( int argc, char **argv )
 
     for (int j = 0; j <10; j++)
     {
-        for (int i = 0; i< HASH_SIZE/2; i++ )
+        for (int i = 0; i< size/2; i++ )
         {
             char cksum[128];
             char *csum;
@@ -435,10 +438,23 @@ int main( int argc, char **argv )
     printf("Average access time in nanosecs : %.2f\n", search_time);
 
     printf("deleting ..\n");
-    for (int i = 0; i< HASH_SIZE/2; i++ )
+    for (int i = 0; i< size/2; i++ )
     {
+        char *csum;
+        int err;
+
         sprintf(md.buffer, "%06d", i);
-        int err = fh_del(f, md.buffer);
+        csum = fh_get(f, md.buffer, &err);
+        if (csum == NULL)
+        {
+            printf("error %d in fh_get\n", err);
+        }
+        else
+        {
+            free(csum);
+        }
+
+        err = fh_del(f, md.buffer);
         if ( err < 0 )
         {
             printf("error %d in fh_del\n", err);
@@ -454,4 +470,155 @@ int main( int argc, char **argv )
 
     fh_destroy(f);
     printf("------------ end of tests \n");
+
+
+    /////////////////////////////
+    /// multi-thread tests
+    /////////////////////////////
+
+    printf("------------ STARTING MULTI THREAD tests --------- \n");
+
+
+    if ((f = fh_create(size, FH_DATALEN_STRING, NULL)) == NULL )
+    {
+        printf("fh_create returned NULL\n");
+    }
+
+#define MAX_THREADS 16
+
+    pthread_t tid[MAX_THREADS];
+
+
+    for (int t=0; t<MAX_THREADS; t++)
+    {
+        // run threads working on the same fh
+        pthread_create(&tid[t], NULL, &string_thread_test, (void *) f);
+        printf("------------ thread %ld started --------- \n", tid[t]);
+    }
+
+    // wait for termination
+    void *retval;
+    for (int t=0; t<MAX_THREADS; t++)
+    {
+        pthread_t r = pthread_join(tid[t], &retval);
+        printf("------------ thread %ld terminated --------- \n", r);
+    }
+    printf("------------ TERMINATING MULTI THREAD tests --------- \n");
+}
+
+/*
+ * multithreaded test
+ */
+
+void *string_thread_test(fh_t *f)
+{
+    char mykey[64];
+    struct mydata
+    {
+        char buffer[64];
+        char checksum[128];
+        int i;
+    } md, md2;
+    double insert_time;
+    double search_time;
+    unsigned long long delta;
+    void *t = timing_new_timer(1);
+    int curr, coll;
+    void *slot;
+
+    int tid = pthread_self();
+    srand(tid);
+
+    printf("------------ %d - Testing string opaque data \n", tid);
+
+    int real_size = 0;
+
+
+    insert_time = 0;
+    for (int i = 0; i< size/2; i++ )
+    {
+        sprintf(md.buffer, "%06d", i);
+        sprintf(md.checksum, "%0x", i);
+        // printf("generating checksum %s\n", md.checksum);
+        md.i = i;
+
+        timing_start(t);
+        int err = fh_insert(f, md.buffer, md.checksum);
+        delta = timing_end(t);
+        insert_time = compute_average(insert_time, i, delta);
+
+        if ( err < 0 && err != FH_DUPLICATED_ELEMENT)
+        {
+            printf("error %d in fh_insert\n", err);
+        }
+    }
+    printf("Average insert time in nanosecs : %.2f\n", insert_time);
+
+    if ( !fh_getattr(f, FH_ATTR_ELEMENT, &curr) )
+    {
+        printf("error in fh_getattr\n");
+    }
+    printf("hash elements %d\n", curr);
+
+    coll = 0;
+    if ( !fh_getattr(f, FH_ATTR_COLLISION, &coll) )
+    {
+        printf("error in fh_getattr\n");
+    }
+    printf("hash collision %d\n", coll);
+
+// search
+    printf("searching ..\n");
+    search_time = 0;
+    for (int j = 0; j <10; j++)
+    {
+        for (int i = 0; i< size/2; i++ )
+        {
+            char cksum[128];
+            char *csum;
+
+            int ii = rand() % (size/2);
+            sprintf(md.buffer, "%06d", ii);
+            sprintf(cksum, "%0x", ii);
+
+            timing_start(t);
+            int err = fh_search(f, md.buffer, md.checksum, 128);
+            delta = timing_end(t);
+            search_time = compute_average(search_time, i*j, delta);
+
+            if (err < 0 && err != FH_ELEMENT_NOT_FOUND)
+            {
+                printf("error %d in fh_search\n", err);
+                continue;
+            }
+
+            if ( err < 0 ) continue;
+
+            if ( strcmp(cksum, md.checksum) != 0 )
+            {
+                printf("thread %d, error in search md.checksum %s != %d checksum %s (fh_search ret %d)\n",
+                       tid, md.checksum, ii, cksum, err);
+                return(0);
+            }
+        }
+    }
+
+    printf("Average access time in nanosecs : %.2f\n", search_time);
+
+    printf("deleting ..\n");
+    for (int i = 0; i< size/2; i++ )
+    {
+        sprintf(md.buffer, "%06d", i);
+        int err = fh_del(f, md.buffer);
+        if ( err < 0 && err != FH_ELEMENT_NOT_FOUND)
+        {
+            printf("error %d in fh_del\n", err);
+        }
+    }
+
+    if ( !fh_getattr(f, FH_ATTR_ELEMENT, &curr) )
+    {
+        printf("error in fh_getattr\n");
+    }
+    printf("hash elements %d\n", curr);
 }
