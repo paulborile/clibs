@@ -31,6 +31,7 @@
 #include <pthread.h>
 #include <assert.h>
 
+#include "ll.h"
 #include "fh.h"
 #include "lru.h"
 
@@ -51,30 +52,67 @@ lru_t *lru_create(int dim)
         return (NULL);
     }
 
-    l->lru_magic = LRU_MAGIC_ID;
-    l->lru_size = dim; // maximum number of objects to kept in hash
+    l->magic = LRU_MAGIC_ID;
+    l->size = dim; // maximum number of objects to kept in hash
 
-    if (( l->fh = fh_create(dim, FH_DATALEN_VOIDP, NULL)) == NULL )
+    l->fh = fh_create(dim, FH_DATALEN_VOIDP, NULL);
+    if ( l->fh == NULL )
     {
         return (NULL);
     }
 
-    // l->ll = ll_create(dim)) == NULL )
+    l->ll = ll_create(dim);
+    if (l->ll == NULL )
+    {
+        return(NULL);
+    }
 
-    return(l);
+    return l;
 }
+
+// add entry to lru
+//
 
 int     lru_add(lru_t *lru, char *key, void *payload)
 {
-    return(1);
+    char *key_to_remove;
+    void *hashpayload;
+    int fh_err;
+    void *slot;
+
+    // check hastable size
+
+    int hsize = fh_getattr(lru->fh, FH_ATTR_ELEMENT, &hsize);
+
+    if (hsize >= lru->size)
+    {
+        // lru is full, need to remove an entry
+        ll_remove_last(lru->ll, &key_to_remove, &hashpayload);
+
+        // now remove entry from hashtable by key
+        if (( fh_err = fh_del(lru->fh, key_to_remove)) < 0 )
+        {
+            // error, fh_del returns error
+            printf("fh_del returns %d on %s", fh_err, key_to_remove);
+        }
+    }
+
+    // now allocate a new ll_slot
+    slot = ll_slot_new(lru->ll);
+
+    //New opaque with payload + ll_slot_pointer
+    //fh_insert(ua, opaque)
+    //ll_slot_pointer->opaque = opaque
+    //ll_move_to_top(slot_pointer)
+    return 1;
 }
 
-int     lru_check(lru_t *lru, char *key, void **payload )
+int     lru_check(lru_t *lru, char *key, void **payload)
 {
     return(1);
 }
 
-int     lru_destroy(lru_t *lru )
+int     lru_destroy(lru_t *lru)
 {
     return(1);
 }

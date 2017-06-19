@@ -1,6 +1,6 @@
 OBJ = lru.o
 
-CFLAGS = -O3 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -I ../libfh -Wcomment -pthread
+CFLAGS = -O3 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -I ../libfh -I../libll -Wcomment -pthread
 # CFLAGS = -g -O0 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment 
 
 lib: $(OBJ)
@@ -10,7 +10,7 @@ lib: $(OBJ)
 
 macosx-lib: $(OBJ)
 	$(CC) -fPIC -Wl,-undefined -Wl,dynamic_lookup -shared -o liblru.so $(OBJ)
-	$(CXX) -dynamiclib -undefined suppress -flat_namespace $(OBJ) -o libufa.dylib
+	$(CXX) -dynamiclib -undefined suppress -flat_namespace $(OBJ) -o liblru.dylib
 
 clean:
 	rm -rf $(OBJ) liblru.so* liblru.a

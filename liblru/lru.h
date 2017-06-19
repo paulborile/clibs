@@ -29,13 +29,11 @@ extern "C" {
 
 // lru object
 struct _lru_t{
-	int	 lru_magic;
-	int  lru_size; // maximum number of object kept in hash
-	int	 lru_datalen; // libfh opaque_obj size : -1 for strings, 0 for pointers, > 0 for data
-	int  lru_elements; // elements in hash
-	int  lru_attr; // holding attributes
+	int	 magic;
+	int  size; // maximum number of object kept in hash
+	int  attr; // holding attributes
 	fh_t *fh;
-//  ll_t *ll;
+  ll_t *ll;
 };
 typedef struct _lru_t lru_t;
 
