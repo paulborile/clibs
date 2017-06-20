@@ -41,7 +41,7 @@ struct _lru_payload_t {
     void *ll_slot;
     char *fh_key;
 };
-typedef _lru_payload_t lru_payload_t;
+typedef struct _lru_payload_t lru_payload_t;
 
 // lru_create : create lru object
 // lru is basically an hashtable with a maximum number of elements that can be added. When the lru is full,
@@ -94,13 +94,13 @@ int     lru_add(lru_t *lru, char *key, void *payload)
     if (hsize >= lru->size)
     {
         // lru is full, need to remove an entry, pointer to removed entry payload is returned
-        ll_remove_last(lru->ll, &hashpayload);
+        ll_remove_last(lru->ll, (void *)&hashpayload);
 
         // now remove entry from hashtable by key
         if (( fh_err = fh_del(lru->fh, hashpayload->fh_key)) < 0 )
         {
             // error, fh_del returns error
-            printf("fh_del returns %d on %s", fh_err, key_to_remove);
+            printf("fh_del returns %d on %s", fh_err, hashpayload->fh_key);
         }
 
         // free allocated payload datalen
@@ -112,17 +112,17 @@ int     lru_add(lru_t *lru, char *key, void *payload)
 
     // New fh opaque with lru payload + ll_slot_pointer + fh_key since used for ll too
     new = malloc(sizeof(lru_payload_t));
-    assert(new == NULL);
+    assert(new != NULL);
 
     new->payload = payload;
     new->ll_slot = slot;
-    new->key = key;
+    new->fh_key = key;
 
     fh_insert(lru->fh, key, new);
 
     ll_slot_set_payload(lru->ll, slot, new);
 
-    ll_move_to_top(lru->ll, slot)
+    ll_slot_move_to_top(lru->ll, slot);
 
     return 1;
 }
@@ -130,8 +130,9 @@ int     lru_add(lru_t *lru, char *key, void *payload)
 int     lru_check(lru_t *lru, char *key, void **payload)
 {
     lru_payload_t *pload;
+    int fherr;
 
-    pload = (lru_payload_t *) fh_get(lru->fh, key);
+    pload = (lru_payload_t *) fh_get(lru->fh, key, &fherr);
 
     if ( pload == NULL )
     {
@@ -139,25 +140,49 @@ int     lru_check(lru_t *lru, char *key, void **payload)
     }
 
     // copy pointer out
-    *payload = payload->payload;
+    *payload = pload->payload;
 
-    ll_move_to_top(payload->ll_slot);
+    ll_slot_move_to_top(lru->ll, pload->ll_slot);
 
     return(LRU_OK);
 }
 
 int     lru_destroy(lru_t *lru)
 {
+    void *payload;
+    // remove all allocated payloads
+    while ( ll_remove_last(lru->ll, &payload) != NULL )
+    {
+        free(payload);
+    }
+
+    ll_destroy(lru->ll);
+    fh_destroy(lru->fh);
+    free(lru);
+
     return(1);
 }
 
-/*
-   int     lru_setattr(lru_t *lru, int attr, int value)
-   {
 
-   }
-   int     lru_getattr(lru_t *lru, int attr, int *value)
-   {
+#ifdef TEST
 
-   }
- */
+int main(int argc, char **argv)
+{
+    int howmany = atoi(argv[1]);
+    char *str = NULL;
+
+    lru_t *l = lru_create(howmany);
+
+    lru_add(l, "unitedstates", "washington");
+    lru_add(l, "italy", "rome");
+    lru_add(l, "france", "paris");
+
+    lru_check(l, "france", (void *)&str);
+
+    if (strcmp(str, "paris") != 0 )
+    {
+        printf("error in lru_check, returned %s\n", str);
+    }
+}
+
+#endif

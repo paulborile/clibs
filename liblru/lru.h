@@ -23,11 +23,6 @@ extern "C" {
 #define LRU_DIM_INVALID	-7000 // bad dimension
 #define LRU_BAD_ATTR		-9000 // bad attribute to get/setattr
 
-// getattr commands
-#define LRU_ATTR_ELEMENT  100 // getattr elements in hash
-#define LRU_ATTR_DIM	101 // getattr real dim of hashtable
-#define LRU_ATTR_COLLISION	102 // getattr collisions in insert
-
 // lru object
 struct _lru_t{
 	int	 magic;

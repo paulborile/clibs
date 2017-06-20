@@ -106,12 +106,12 @@ void ll_slot_free(ll_t *ll, ll_slot_t *slot) // puts slot back in freelist
 }
 
 // removes last ll_slot, returns payload, puts slot back to freelist
-void ll_remove_last(ll_t *ll, void **payload)
+ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
 {
     if ( ll == NULL || (ll->last == NULL))
     {
-        printf("ll(%p) == null or ll->last(%p) == null\n", ll, ll->last);
-        return;
+        //printf("ll(%p) == null or ll->last(%p) == null\n", ll, ll->last);
+        return NULL;
     }
 
     ll_slot_t *oldlast = ll->last;
@@ -123,6 +123,7 @@ void ll_remove_last(ll_t *ll, void **payload)
     ll->last = oldlast->next;
 
     ll_slot_free(ll, oldlast);
+    return oldlast;
 }
 
 // take a slot that might be either in list or just taken from freelist
@@ -205,6 +206,7 @@ int ll_destroy(ll_t *ll)
         free(ll->save);
         free(ll);
     }
+    return LL_OK;
 }
 
 
