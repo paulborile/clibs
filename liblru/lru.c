@@ -35,6 +35,13 @@
 #include "fh.h"
 #include "lru.h"
 
+// fh payload
+struct _lru_payload_t {
+    void *payload;
+    void *ll_slot;
+    char *fh_key;
+};
+typedef _lru_payload_t lru_payload_t;
 
 // lru_create : create lru object
 // lru is basically an hashtable with a maximum number of elements that can be added. When the lru is full,
@@ -75,10 +82,10 @@ lru_t *lru_create(int dim)
 
 int     lru_add(lru_t *lru, char *key, void *payload)
 {
-    char *key_to_remove;
-    void *hashpayload;
+    lru_payload_t *hashpayload;
     int fh_err;
     void *slot;
+    lru_payload_t *new;
 
     // check hastable size
 
@@ -86,30 +93,57 @@ int     lru_add(lru_t *lru, char *key, void *payload)
 
     if (hsize >= lru->size)
     {
-        // lru is full, need to remove an entry
-        ll_remove_last(lru->ll, &key_to_remove, &hashpayload);
+        // lru is full, need to remove an entry, pointer to removed entry payload is returned
+        ll_remove_last(lru->ll, &hashpayload);
 
         // now remove entry from hashtable by key
-        if (( fh_err = fh_del(lru->fh, key_to_remove)) < 0 )
+        if (( fh_err = fh_del(lru->fh, hashpayload->fh_key)) < 0 )
         {
             // error, fh_del returns error
             printf("fh_del returns %d on %s", fh_err, key_to_remove);
         }
+
+        // free allocated payload datalen
+        free(hashpayload);
     }
 
     // now allocate a new ll_slot
     slot = ll_slot_new(lru->ll);
 
-    //New opaque with payload + ll_slot_pointer
-    //fh_insert(ua, opaque)
-    //ll_slot_pointer->opaque = opaque
-    //ll_move_to_top(slot_pointer)
+    // New fh opaque with lru payload + ll_slot_pointer + fh_key since used for ll too
+    new = malloc(sizeof(lru_payload_t));
+    assert(new == NULL);
+
+    new->payload = payload;
+    new->ll_slot = slot;
+    new->key = key;
+
+    fh_insert(lru->fh, key, new);
+
+    ll_slot_set_payload(lru->ll, slot, new);
+
+    ll_move_to_top(lru->ll, slot)
+
     return 1;
 }
 
 int     lru_check(lru_t *lru, char *key, void **payload)
 {
-    return(1);
+    lru_payload_t *pload;
+
+    pload = (lru_payload_t *) fh_get(lru->fh, key);
+
+    if ( pload == NULL )
+    {
+        return LRU_ELEMENT_NOT_FOUND;
+    }
+
+    // copy pointer out
+    *payload = payload->payload;
+
+    ll_move_to_top(payload->ll_slot);
+
+    return(LRU_OK);
 }
 
 int     lru_destroy(lru_t *lru)

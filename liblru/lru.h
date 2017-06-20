@@ -13,6 +13,7 @@ extern "C" {
 /** hash magic */
 #define LRU_MAGIC_ID			0xC0CCA
 
+#define LRU_OK			1
 // errors
 #define LRU_BAD_HANDLE	-1 // handle null of not pointing to ft_h
 #define LRU_ELEMENT_NOT_FOUND	-2000 // hash element not found
