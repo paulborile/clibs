@@ -170,19 +170,34 @@ int main(int argc, char **argv)
 {
     int howmany = atoi(argv[1]);
     char *str = NULL;
+    char payloads[howmany][12];
+    int j;
+
+    for (int i = 0; i < howmany; i++)
+    {
+        sprintf(payloads[i], "%d", i);
+    }
 
     lru_t *l = lru_create(howmany);
 
-    lru_add(l, "unitedstates", "washington");
-    lru_add(l, "italy", "rome");
-    lru_add(l, "france", "paris");
-
-    lru_check(l, "france", (void *)&str);
-
-    if (strcmp(str, "paris") != 0 )
+    for (int i = 0; i < howmany*1000; i++)
     {
-        printf("error in lru_check, returned %s\n", str);
+        j = rand() % howmany;
+        if ( lru_check(l, payloads[j], (void *) &str) == LRU_OK)
+        {
+            // found, test if same
+            if ( strcmp(payloads[j], str) != 0 )
+            {
+                printf("ouch %s != %s\n", payloads[j], str);
+                exit(1);
+            }
+        }
+        else
+        {
+            lru_add(l, payloads[j], (void *) payloads[j]);
+        }
     }
+
 }
 
 #endif
