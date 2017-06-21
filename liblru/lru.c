@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 {
     int howmany = atoi(argv[1]);
     char *str = NULL;
-    char payloads[howmany][12];
+    char payloads[howmany][20];
     int j;
 
     for (int i = 0; i < howmany; i++)
