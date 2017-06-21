@@ -10,6 +10,9 @@
 extern "C" {
 #endif
 
+#include "fh.h"
+#include "ll.h"
+
 /** hash magic */
 #define LRU_MAGIC_ID			0xC0CCA
 
@@ -36,9 +39,7 @@ typedef struct _lru_t lru_t;
 // create lru
 lru_t	*lru_create(int dim);
 int 	lru_add(lru_t *lru, char *key, void *payload);
-int 	lru_get(lru_t *lru, char *key, void **payload);
-int 	lru_setattr(lru_t *lru, int attr, int value);
-int 	lru_getattr(lru_t *lru, int attr, int *value);
+int 	lru_check(lru_t *lru, char *key, void **payload);
 int 	lru_destroy(lru_t *lru);
 
 #ifdef __cplusplus
