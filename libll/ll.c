@@ -63,6 +63,9 @@ ll_t    *ll_create(int dim)
 
     ll->fl_size = dim;
 
+    // init ll critical region mutex
+    pthread_mutex_init(&(ll->lock), NULL);
+
     for (int i=0; i<dim; i++)
     {
         if (i == (dim-1))
@@ -77,15 +80,25 @@ ll_t    *ll_create(int dim)
     return ll;
 }
 
-// ll_slot_new : alloc a slot i.e. get it from freelis of preallocated slots
+static void _ll_lock(ll_t *ll)
+{
+    pthread_mutex_lock(&(ll->lock));
+}
 
+static void _ll_unlock(ll_t *ll)
+{
+    pthread_mutex_unlock(&(ll->lock));
+}
+
+// ll_slot_new : alloc a slot i.e. get it from freelis of preallocated slots
 ll_slot_t *ll_slot_new(ll_t *ll) // gets a slot from the freelist
 {
     if ( ll == NULL || (ll->freelist == NULL)) return NULL;
 
+    _ll_lock(ll);
     ll_slot_t *ret = ll->freelist;
-
     ll->freelist = ret->next;
+    _ll_unlock(ll);
 
     // clear before returning
     ret->prev = ret->next = NULL;
@@ -100,9 +113,12 @@ void ll_slot_free(ll_t *ll, ll_slot_t *slot) // puts slot back in freelist
 {
     if ( ll == NULL ) return;
 
+    _ll_lock(ll);
     ll_slot_t *oldfirst = ll->freelist;
     ll->freelist = slot;
     slot->next = oldfirst;
+    _ll_unlock(ll);
+
 }
 
 // removes last ll_slot, returns payload, puts slot back to freelist
@@ -114,13 +130,13 @@ ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
         return NULL;
     }
 
+    _ll_lock(ll);
     ll_slot_t *oldlast = ll->last;
-
     // copy out data
     *payload = ll->last->payload;
-
     // now remove entry
     ll->last = oldlast->next;
+    _ll_unlock(ll);
 
     ll_slot_free(ll, oldlast);
     return oldlast;
@@ -136,6 +152,7 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
         return;
     }
 
+    _ll_lock(ll);
     ll_slot_t *oldtop = ll->top;
 
     // new slot to put at top
@@ -152,6 +169,7 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
         {
             ll->last = slot;
         }
+        _ll_unlock(ll);
         return;
     }
 
@@ -170,6 +188,7 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
             oldtop->next = slot;
             slot->prev = oldtop;
         }
+        _ll_unlock(ll);
         return;
     }
 
@@ -188,8 +207,9 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
             oldtop->next = slot;
             slot->prev = oldtop;
         }
-
     }
+    _ll_unlock(ll);
+    return;
 }
 
 // ll_slot_set_payload : sets payload to a slot
@@ -201,11 +221,13 @@ void ll_slot_set_payload(ll_t *ll, ll_slot_t *slot, void *payload)
 // destroy object, using original calloc saved pointer
 int ll_destroy(ll_t *ll)
 {
+    _ll_lock(ll);
     if (ll)
     {
         free(ll->save);
         free(ll);
     }
+    _ll_unlock(ll);
     return LL_OK;
 }
 
@@ -249,13 +271,18 @@ static void check_cons(ll_t *ll, int count)
 
 int main(int argc, char **argv)
 {
+    if ( argc < 2 )
+    {
+        printf("usage : %s <llsize> [<loops>]\n", argv[0]);
+        exit(1);
+    }
+    void *payload;
     int howmany = atoi(argv[1]);
     int loops = 1;
     if ( argv[2] )
     {
         loops = atoi(argv[2]);
     }
-    void *payload;
 
     ll_slot_t *all[howmany];
 

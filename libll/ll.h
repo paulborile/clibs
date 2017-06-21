@@ -29,7 +29,8 @@ struct _ll_t {
 	int	 magic;
 	int  size; // maximum number of objects
 	ll_slot_t *top, *last, *freelist, *save;
-	int  fl_size;
+	int fl_size;
+	pthread_mutex_t lock;
 };
 typedef struct _ll_t ll_t;
 
