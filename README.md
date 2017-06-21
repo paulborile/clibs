@@ -34,6 +34,22 @@ int main(int argc, char **argv)
 
 ```
 
+To compile the liblru and test it :
+
+```
+cd liblru ; make -f liblru.mk clean lib
+cd test ; make ; ./lrutest <lrusize>
+
+```
+
+Performance : run on Intel Core i7-4710HQ CPU @ 2.50GHz :
+
+```
+$ ./lrutest 100000
+Average lru_check time in nanosecs : 295.28
+Average lru_add time in nanosecs : 156.32
+
+```
 
 C Hashtable
 
