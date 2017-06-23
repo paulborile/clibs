@@ -264,6 +264,13 @@ int fh_destroy(fh_t *fh)
     free(fh->hash_table);
     _fh_unlock_all(fh);
 
+    for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
+    {
+        pthread_mutex_destroy(&fh->h_lock[i]);
+    }
+
+    pthread_mutex_destroy(&fh->fh_lock);
+
     // dealloco struct hash info
     free(fh);
 
