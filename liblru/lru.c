@@ -87,28 +87,23 @@ int     lru_add(lru_t *lru, char *key, void *payload)
     void *slot;
     lru_payload_t *new;
 
-    // check hastable size
-
-    int hsize = fh_getattr(lru->fh, FH_ATTR_ELEMENT, &hsize);
-
-    if (hsize >= lru->size)
+    // ll_slot_new returns NULL on lru full, need to remove an entry and free it and try again
+    while (( slot = ll_slot_new(lru->ll)) == NULL )
     {
-        // lru is full, need to remove an entry, pointer to removed entry payload is returned
         ll_remove_last(lru->ll, (void *)&hashpayload);
 
         // now remove entry from hashtable by key
         if (( fh_err = fh_del(lru->fh, hashpayload->fh_key)) < 0 )
         {
             // error, fh_del returns error
-            printf("fh_del returns %d on %s", fh_err, hashpayload->fh_key);
+            printf("fh_del returns %d on %s\n", fh_err, hashpayload->fh_key);
         }
 
         // free allocated payload datalen
         free(hashpayload);
     }
 
-    // now allocate a new ll_slot
-    slot = ll_slot_new(lru->ll);
+    // slot is a valid new entry now
 
     // New fh opaque with lru payload + ll_slot_pointer + fh_key since used for ll too
     new = malloc(sizeof(lru_payload_t));
@@ -118,13 +113,28 @@ int     lru_add(lru_t *lru, char *key, void *payload)
     new->ll_slot = slot;
     new->fh_key = key;
 
-    fh_insert(lru->fh, key, new);
+    int lru_err;
+    if (( lru_err = fh_insert(lru->fh, key, new)) != LRU_OK )
+    {
+        if (lru_err == FH_DUPLICATED_ELEMENT)
+        {
+            free(new);
+            ll_slot_free(lru->ll, slot);
+            return LRU_DUPLICATED_ELEMENT;
+        }
+        if (lru_err == FH_NO_MEMORY)
+        {
+            free(new);
+            ll_slot_free(lru->ll, slot);
+            return LRU_NO_MEMORY;
+        }
+    }
 
     ll_slot_set_payload(lru->ll, slot, new);
 
     ll_slot_move_to_top(lru->ll, slot);
 
-    return 1;
+    return LRU_OK;
 }
 
 int     lru_check(lru_t *lru, char *key, void **payload)

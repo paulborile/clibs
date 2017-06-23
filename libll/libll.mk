@@ -1,11 +1,11 @@
 OBJ = ll.o
 
-CFLAGS = -O3 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment -pthread
-# CFLAGS = -g -O0 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment 
+# CFLAGS = -O3 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment -pthread
+CFLAGS = -g -O0 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment -pthread
 
 lib: $(OBJ)
 
-#	$(CC) -fPIC -Wl,-undefined -Wl,dynamic_lookup -shared -o libll.so $(OBJ) 
+#	$(CC) -fPIC -Wl,-undefined -Wl,dynamic_lookup -shared -o libll.so $(OBJ)
 	ar csr libll.a $(OBJ)
 
 macosx-lib: $(OBJ)
@@ -28,4 +28,3 @@ win-clean:
 	rm -rf .\test\*.o
 	rm -rf *.so
 	rm -rf *.exe
-

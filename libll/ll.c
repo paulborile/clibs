@@ -24,6 +24,9 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define _XOPEN_SOURCE 700
+
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>
@@ -64,7 +67,14 @@ ll_t    *ll_create(int dim)
     ll->fl_size = dim;
 
     // init ll critical region mutex
+#ifdef MUTEX_CHECKS
+    pthread_mutexattr_t mta;
+    pthread_mutexattr_init(&mta);
+    pthread_mutexattr_settype(&mta, PTHREAD_MUTEX_ERRORCHECK);
+    pthread_mutex_init(&(ll->lock), &mta);
+#else
     pthread_mutex_init(&(ll->lock), NULL);
+#endif
 
     for (int i=0; i<dim; i++)
     {
@@ -82,27 +92,48 @@ ll_t    *ll_create(int dim)
 
 static void _ll_lock(ll_t *ll)
 {
-    pthread_mutex_lock(&(ll->lock));
+    int ret = pthread_mutex_lock(&(ll->lock));
+#ifdef MUTEX_CHECKS
+    if (ret != 0)
+    {
+        printf("_ll_lock() - pthread_mutex_lock() returned %d\n", ret);
+        abort();
+    }
+#endif
 }
 
 static void _ll_unlock(ll_t *ll)
 {
-    pthread_mutex_unlock(&(ll->lock));
+    int ret = pthread_mutex_unlock(&(ll->lock));
+#ifdef MUTEX_CHECKS
+    if (ret != 0)
+    {
+        printf("_ll_unlock() - pthread_mutex_unlock() returned %d\n", ret);
+        abort();
+    }
+#endif
 }
 
 // ll_slot_new : alloc a slot i.e. get it from freelis of preallocated slots
 ll_slot_t *ll_slot_new(ll_t *ll) // gets a slot from the freelist
 {
-    if ( ll == NULL || (ll->freelist == NULL)) return NULL;
+    if ( ll == NULL ) return NULL;
 
     _ll_lock(ll);
+
+    if (ll->freelist == NULL)
+    {
+        _ll_unlock(ll);
+        return NULL;
+    }
+
     ll_slot_t *ret = ll->freelist;
     ll->freelist = ret->next;
-    _ll_unlock(ll);
 
     // clear before returning
-    ret->prev = ret->next = NULL;
-    ret->payload = NULL;
+    ret->prev = ret->next = ret->payload = NULL;
+
+    _ll_unlock(ll);
 
     return ret;
 }
@@ -124,26 +155,47 @@ void ll_slot_free(ll_t *ll, ll_slot_t *slot) // puts slot back in freelist
 // removes last ll_slot, returns payload, puts slot back to freelist
 ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
 {
-    if ( ll == NULL || (ll->last == NULL))
+    if ( ll == NULL )
     {
         //printf("ll(%p) == null or ll->last(%p) == null\n", ll, ll->last);
         return NULL;
     }
 
     _ll_lock(ll);
+
+    if ( ll->last == NULL )
+    {
+        // nothing to remove
+        _ll_unlock(ll);
+        return(NULL);
+    }
+
     ll_slot_t *oldlast = ll->last;
     // copy out data
     *payload = ll->last->payload;
     // now remove entry
     ll->last = oldlast->next;
+
+    if ( ll->last != NULL )
+    {
+        // fixing prev of new last
+        ll->last->prev = NULL;
+    }
+    else
+    {
+        // removing the last element
+        ll->top = NULL;
+    }
     _ll_unlock(ll);
 
+    // now we have a dangling oldlast to put back to freelist
     ll_slot_free(ll, oldlast);
     return oldlast;
 }
 
 // take a slot that might be either in list or just taken from freelist
 // and put it to top
+
 void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
 {
     if ( ll == NULL)
@@ -155,7 +207,7 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
     _ll_lock(ll);
     ll_slot_t *oldtop = ll->top;
 
-    // new slot to put at top
+    // new slot ( or only slot )to put at top
     if ((slot->prev == NULL) && (slot->next == NULL))
     {
         ll->top = slot;
@@ -193,8 +245,16 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
     }
 
     // moving last to top
-    if ( ll->last == slot ) // or slot->prev == NULL ???
+    //if ( ll->last == slot ) // or slot->prev == NULL ???
+    if ( slot->prev == NULL ) // or slot->prev == NULL ???
     {
+        // this should be last!!!
+        if ( ll->last != slot )
+        {
+            printf("slot->prev == NULL and ll->last != slot\n");
+            //assert(ll->last == slot);
+            abort();
+        }
         // reconnecting
         slot->next->prev = NULL;
         ll->last = slot->next;
@@ -207,7 +267,22 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
             oldtop->next = slot;
             slot->prev = oldtop;
         }
+        _ll_unlock(ll);
+        return;
     }
+
+    if ( slot->next == NULL ) // this is already top
+    {
+        // this should be top!!!
+        if ( ll->top != slot )
+        {
+            printf("slot->next == NULL and ll->top != slot\n");
+            //assert(ll->last == slot);
+            abort();
+        }
+        // nothing to do : already top item
+    }
+
     _ll_unlock(ll);
     return;
 }
@@ -221,13 +296,12 @@ void ll_slot_set_payload(ll_t *ll, ll_slot_t *slot, void *payload)
 // destroy object, using original calloc saved pointer
 int ll_destroy(ll_t *ll)
 {
-    _ll_lock(ll);
     if (ll)
     {
         free(ll->save);
+        pthread_mutex_destroy(&ll->lock);
         free(ll);
     }
-    _ll_unlock(ll);
     return LL_OK;
 }
 

@@ -38,7 +38,7 @@ double  compute_average(double current_avg, int count, int new_value)
     }
 }
 
-void *string_thread_test(fh_t *f);
+void *string_thread_test(void *f);
 
 int size = HASH_SIZE;
 
@@ -510,7 +510,7 @@ int main( int argc, char **argv )
  * multithreaded test
  */
 
-void *string_thread_test(fh_t *f)
+void *string_thread_test(void *fv)
 {
     char mykey[64];
     struct mydata
@@ -525,6 +525,7 @@ void *string_thread_test(fh_t *f)
     void *t = timing_new_timer(1);
     int curr, coll;
     void *slot;
+    fh_t *f = (fh_t *) fv;
 
     int tid = pthread_self();
     srand(tid);
