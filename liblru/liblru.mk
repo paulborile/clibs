@@ -28,3 +28,9 @@ win-clean:
 	rm -rf .\test\*.o
 	rm -rf *.so
 	rm -rf *.exe
+
+
+
+# depends
+ll.o: ll.h
+lru.o: ll.h lru.h
