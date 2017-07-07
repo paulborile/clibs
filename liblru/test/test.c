@@ -71,6 +71,7 @@ int main(int argc, char **argv)
     {
         j = rand() % howmany;
 
+
         timing_start(t);
         lru_err = lru_check(l, payloads[j], (void *) &str);
         delta = timing_end(t);

@@ -41,6 +41,7 @@ lru_t	*lru_create(int dim);
 int 	lru_add(lru_t *lru, char *key, void *payload);
 int 	lru_check(lru_t *lru, char *key, void **payload);
 int 	lru_destroy(lru_t *lru);
+int		lru_print(lru_t *lru);
 
 #ifdef __cplusplus
 }

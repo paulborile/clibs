@@ -62,11 +62,13 @@ lru_t *lru_create(int dim)
     l->magic = LRU_MAGIC_ID;
     l->size = dim; // maximum number of objects to kept in hash
 
-    l->fh = fh_create(dim, FH_DATALEN_VOIDP, NULL);
+    l->fh = fh_create(dim*2, FH_DATALEN_VOIDP, NULL);
     if ( l->fh == NULL )
     {
         return (NULL);
     }
+    // set FH_SETATTR_DONTCOPYKEY because the only copy of the key will be in lru_payload_t
+    fh_setattr(l->fh, FH_SETATTR_DONTCOPYKEY, 0);
 
     l->ll = ll_create(dim);
     if (l->ll == NULL )
@@ -96,10 +98,13 @@ int     lru_add(lru_t *lru, char *key, void *payload)
         if (( fh_err = fh_del(lru->fh, hashpayload->fh_key)) < 0 )
         {
             // error, fh_del returns error
-            printf("fh_del returns %d on %s\n", fh_err, hashpayload->fh_key);
+            int size;
+            fh_getattr(lru->fh, FH_ATTR_ELEMENT, &size);
+            printf("fh size = %d, fh_del returns %d on %s, payload %s\n", size, fh_err, hashpayload->fh_key, (char *)hashpayload->payload);
         }
 
-        // free allocated payload datalen
+        // free allocated key and payload
+        free(hashpayload->fh_key);
         free(hashpayload);
     }
 
@@ -111,19 +116,25 @@ int     lru_add(lru_t *lru, char *key, void *payload)
 
     new->payload = payload;
     new->ll_slot = slot;
-    new->fh_key = key;
+    if ((new->fh_key = malloc(strlen(key) + 1)) == NULL) // this is only copy of key around
+    {
+        return(LRU_NO_MEMORY);
+    }
+    strcpy(new->fh_key, key);
 
     int lru_err;
-    if (( lru_err = fh_insert(lru->fh, key, new)) != LRU_OK )
+    if (( lru_err = fh_insert(lru->fh, new->fh_key, new)) != LRU_OK )
     {
         if (lru_err == FH_DUPLICATED_ELEMENT)
         {
+            free(new->fh_key);
             free(new);
             ll_slot_free(lru->ll, slot);
             return LRU_DUPLICATED_ELEMENT;
         }
         if (lru_err == FH_NO_MEMORY)
         {
+            free(new->fh_key);
             free(new);
             ll_slot_free(lru->ll, slot);
             return LRU_NO_MEMORY;
@@ -173,15 +184,36 @@ int     lru_destroy(lru_t *lru)
     return(1);
 }
 
+int print_payload(void *v)
+{
+    lru_payload_t *p = v;
+    printf("key = %s, payload = %s, ll_slot = %p\n", p->fh_key, (char *)p->payload, p->ll_slot);
+    return 0;
+}
+
+int lru_print(lru_t *lru)
+{
+    ll_print(lru->ll, print_payload);
+    return 0;
+}
 
 #ifdef TEST
+
+#define MAXSIZE 100000
+char payloads[MAXSIZE][20];
+
 
 int main(int argc, char **argv)
 {
     int howmany = atoi(argv[1]);
     char *str = NULL;
-    char payloads[howmany][20];
     int j;
+
+    if (howmany > MAXSIZE)
+    {
+        printf("Mac size for testing purposes is %d\n", MAXSIZE);
+        exit(1);
+    }
 
     for (int i = 0; i < howmany; i++)
     {
@@ -208,6 +240,42 @@ int main(int argc, char **argv)
         }
     }
 
+    lru_destroy(l);
+
+    // now check that lru is correctly caching members
+    // use a lru that is smaller than the payloads set
+
+    l = lru_create(howmany/10);
+
+    // fill with 0->howmany/10
+    for (int i = 0; i < howmany/10; i++)
+    {
+        // j = rand() % howmany;
+        j = i;
+
+        lru_add(l, payloads[j], (void *) payloads[j]);
+    }
+
+    // check that the next tenth is no present
+    for (int i = howmany/10; i < (howmany/10 + howmany/10); i++)
+    {
+        // j = rand() % howmany;
+        j = i;
+
+        if ( lru_check(l, payloads[j], (void *) &str) == LRU_OK)
+        {
+            // SHOULD NEVER ENTER HERE : lru is full of howmany/10
+            printf("this stuff should not be here !! ouch %s != %s\n", payloads[j], str);
+            exit(1);
+        }
+        else
+        {
+            // adding : it will remove all 0 to howmany/10
+            lru_add(l, payloads[j], (void *) payloads[j]);
+        }
+    }
+
+    lru_destroy(l);
 }
 
 #endif
