@@ -1,7 +1,7 @@
 OBJ = ll.o
 
-# CFLAGS = -O3 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment -pthread
-CFLAGS = -g -O0 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment -pthread
+CFLAGS = -O3 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment -pthread
+# CFLAGS = -g -O0 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment -pthread
 
 lib: $(OBJ)
 
@@ -13,7 +13,7 @@ macosx-lib: $(OBJ)
 	$(CXX) -dynamiclib -undefined suppress -flat_namespace $(OBJ) -o libll.dylib
 
 clean:
-	rm -rf $(OBJ) libll.so* liblru.a
+	rm -rf $(OBJ) libll.so* libll.a
 
 #some Windows / MINGW stuff
 win-lib: $(OBJ)

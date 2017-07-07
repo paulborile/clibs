@@ -43,6 +43,7 @@ ll_slot_t *ll_slot_new(ll_t *ll); // gets a slot from the freelist
 void ll_slot_set_payload(ll_t *ll, ll_slot_t *slot, void *payload); // sets payload in a slot
 void ll_slot_free(ll_t *ll, ll_slot_t *slot); // puts slot back in freelist
 void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot); // moves to top
+void ll_print(ll_t *ll, int (*payload_print)(void *)); // print data
 
 #ifdef __cplusplus
 }

@@ -207,6 +207,13 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
     _ll_lock(ll);
     ll_slot_t *oldtop = ll->top;
 
+    // trying to move to top slot already at top
+    if ( ll->top == slot)
+    {
+        _ll_unlock(ll);
+        return;
+    }
+
     // new slot ( or only slot )to put at top
     if ((slot->prev == NULL) && (slot->next == NULL))
     {
@@ -306,7 +313,36 @@ int ll_destroy(ll_t *ll)
 }
 
 
+void ll_print(ll_t *ll, int (*payload_print)(void *))
+{
+    ll_slot_t *l = ll->last;
+    int i=0;
+
+    printf("top %p, last %p\n", ll->top, ll->last);
+
+    if (ll->last->prev != NULL)
+    {
+        printf("inconsistency on last slot\n");
+    }
+
+    if (ll->top->next != NULL)
+    {
+        printf("inconsistency on top slot\n");
+    }
+
+    while (l != NULL)
+    {
+        printf("[%p] : next %p, prev %p\n", l, l->next, l->prev);
+        printf("[%p] : payload : ",l); payload_print(l->payload);
+        l = l->next;
+        i++;
+        if (i>50) break;
+    }
+}
+
+
 #ifdef TEST
+
 
 static void check_cons(ll_t *ll, int count)
 {
@@ -343,6 +379,7 @@ static void check_cons(ll_t *ll, int count)
 }
 
 
+
 int main(int argc, char **argv)
 {
     if ( argc < 2 )
@@ -359,10 +396,11 @@ int main(int argc, char **argv)
     }
 
     ll_slot_t *all[howmany];
+    ll_t *ll;
 
     for (int k=0; k<loops; k++)
     {
-        ll_t *ll = ll_create(howmany);
+        ll = ll_create(howmany);
         printf("ll_create(%d) ret %p\n", howmany, ll);
 
         for (int i =0; i<howmany; i++)
