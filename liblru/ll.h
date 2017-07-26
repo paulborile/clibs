@@ -14,6 +14,10 @@ extern "C" {
 #define LL_MAGIC_ID			0xF0CA
 
 #define LL_OK			1
+#define LL_ERROR_LAST_SLOT_INCONSISTENCY -10
+#define LL_ERROR_TOP_SLOT_INCONSISTENCY -20
+#define LL_ERROR_INDEX_OUT_OF_RANGE -30
+
 
 
 // ll node struct
@@ -44,6 +48,9 @@ void ll_slot_set_payload(ll_t *ll, ll_slot_t *slot, void *payload); // sets payl
 void ll_slot_free(ll_t *ll, ll_slot_t *slot); // puts slot back in freelist
 void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot); // moves to top
 void ll_print(ll_t *ll, int (*payload_print)(void *)); // print data
+
+// test only: retrieve data from given node. sequential (slow) access.
+int ll_get_payload(ll_t *ll, int idx, void** payload);
 
 #ifdef __cplusplus
 }
