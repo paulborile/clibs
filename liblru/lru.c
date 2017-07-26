@@ -147,6 +147,32 @@ int     lru_add(lru_t *lru, char *key, void *payload)
     return LRU_OK;
 }
 
+int   lru_clear(lru_t *lru)
+{
+    lru_payload_t *hashpayload;
+    int fh_err;
+
+    while ( ll_remove_last(lru->ll, (void *)&hashpayload) != NULL )
+    {
+        // remove entry from hashtable by key
+        if (( fh_err = fh_del(lru->fh, hashpayload->fh_key)) < 0 )
+        {
+            // error, fh_del returns error
+            int size;
+            fh_getattr(lru->fh, FH_ATTR_ELEMENT, &size);
+            printf("fh size = %d, fh_del returns %d on %s, payload %s\n", size, fh_err, hashpayload->fh_key, (char *)hashpayload->payload);
+            return LRU_ELEMENT_NOT_FOUND;
+        }
+
+        // free allocated key and payload
+        free(hashpayload->fh_key);
+        free(hashpayload);
+    }
+
+    return LRU_OK;
+}
+
+
 int     lru_check(lru_t *lru, char *key, void **payload)
 {
     lru_payload_t *pload;
@@ -195,6 +221,39 @@ int lru_print(lru_t *lru)
     ll_print(lru->ll, print_payload);
     return 0;
 }
+
+int lru_get_ll_data(lru_t *lru, int idx, char** key, void** payload, void** ll_slot)
+{
+    lru_payload_t* payloadPtr = NULL;
+
+    int ll_err = ll_get_payload(lru->ll, idx, (void**) &payloadPtr);
+    if(ll_err != LL_OK)
+        return ll_err;
+
+    (*key) = payloadPtr->fh_key;
+    (*payload) = payloadPtr->payload;
+    (*ll_slot) = payloadPtr->ll_slot;
+
+    return LRU_OK;
+}
+
+int   lru_get_ll_key_position(lru_t *lru, const char* key)
+{
+    lru_payload_t* payloadPtr = NULL;
+    int idx = 0;
+    while(ll_get_payload(lru->ll, idx, (void**) &payloadPtr) == LL_OK)
+    {
+        if(strcmp(key, payloadPtr->fh_key) == 0)
+        {
+            return idx;
+        }
+
+        idx++;
+    }
+
+    return -1;
+}
+
 
 #ifdef TEST
 

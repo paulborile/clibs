@@ -50,13 +50,19 @@ void *thread_test(void *l);
 
 int main(int argc, char **argv)
 {
-    int howmany = atoi(argv[1]);
     char *str = NULL;
-    char payloads[howmany][20];
+    int howmany = 1000;
     int j;
     int lru_err = 0;
     double check_time, add_time;
     unsigned long long delta;
+
+    if (argc == 2 )
+    {
+        howmany = atoi(argv[1]);
+    }
+
+    char payloads[howmany][20];
 
     void *t = timing_new_timer(1);
 
@@ -99,6 +105,7 @@ int main(int argc, char **argv)
 
     printf("Average lru_check time in nanosecs : %.2f\n", check_time);
     printf("Average lru_add time in nanosecs : %.2f\n", add_time);
+    lru_clear(l);
     lru_destroy(l);
 
     printf("------------ STARTING MULTI THREAD tests --------- \n");
@@ -134,6 +141,8 @@ int main(int argc, char **argv)
         printf("------------ thread %ld terminated --------- \n", r);
     }
     printf("------------ TERMINATING MULTI THREAD tests --------- \n");
+    lru_clear(l);
+    lru_destroy(l);
 
 }
 

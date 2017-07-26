@@ -40,7 +40,14 @@ lru_t  *lru_create(int dim);
 int   lru_add(lru_t *lru, char *key, void *payload);
 int   lru_check(lru_t *lru, char *key, void **payload);
 int   lru_destroy(lru_t *lru);
-int    lru_print(lru_t *lru);
+int   lru_print(lru_t *lru);
+int   lru_clear(lru_t *lru);
+
+// test only: retrieve data from ll (the LRU list). sequential (slow) access.
+int   lru_get_ll_data(lru_t *lru, int idx, char** key, void** payload, void** ll_slot);
+// test only: get index of given key in ll. sequential (slow) access
+// returns -1 if key not found
+int   lru_get_ll_key_position(lru_t *lru, const char* key);
 
 #ifdef __cplusplus
 }

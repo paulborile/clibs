@@ -312,6 +312,48 @@ int ll_destroy(ll_t *ll)
     return LL_OK;
 }
 
+// slow! test only! idx == 0 is the most recently used.
+int ll_get_payload(ll_t *ll, int idx, void** payload)
+{
+
+    // printf("payload: %x\n", payload);
+
+    if (ll->last->prev != NULL)
+    {
+        printf("inconsistency on last slot\n");
+        return LL_ERROR_LAST_SLOT_INCONSISTENCY;
+    }
+
+    if (ll->top->next != NULL)
+    {
+        printf("inconsistency on top slot\n");
+        return LL_ERROR_TOP_SLOT_INCONSISTENCY;
+    }
+
+    ll_slot_t *l = ll->top;
+    int i = 0;
+
+    // printf("top %p, last %p\n", ll->top, ll->last);
+
+    while (l != NULL && i < idx)
+    {
+        // printf("[%p] : next %p, prev %p\n", l, l->next, l->prev);
+        // printf("[%p] : payload : ",l); payload_print(l->payload);
+        l = l->prev;
+        i++;
+    }
+
+// printf("i = %d\n", i);
+
+    if(l == NULL)
+    {
+        return LL_ERROR_INDEX_OUT_OF_RANGE;
+    }
+
+    (*payload) = l->payload;
+
+    return LL_OK;
+}
 
 void ll_print(ll_t *ll, int (*payload_print)(void *))
 {
@@ -320,12 +362,12 @@ void ll_print(ll_t *ll, int (*payload_print)(void *))
 
     printf("top %p, last %p\n", ll->top, ll->last);
 
-    if (ll->last->prev != NULL)
+    if ((ll->last != NULL) && (ll->last->prev != NULL))
     {
         printf("inconsistency on last slot\n");
     }
 
-    if (ll->top->next != NULL)
+    if ((ll->top != NULL) && (ll->top->next != NULL))
     {
         printf("inconsistency on top slot\n");
     }

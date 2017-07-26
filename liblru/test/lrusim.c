@@ -45,6 +45,7 @@ int main(int argc, char **argv)
             printf("check  : check a key for presence in lru\n");
             printf("add    : adds a key in lru\n");
             printf("list   : adds a key in lru\n");
+            printf("clear   : adds a key in lru\n");
         }
         else if(strcmp(acbuffer,"exit") == 0)
         {
@@ -106,6 +107,10 @@ int main(int argc, char **argv)
         else if(strcmp(acbuffer, "list") == 0)
         {
             lru_print(l);
+        }
+        else if(strcmp(acbuffer, "clear") == 0)
+        {
+            lru_clear(l);
         }
         else
         {
