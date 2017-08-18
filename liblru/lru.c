@@ -69,7 +69,7 @@ lru_t *lru_create(int dim)
     // set FH_SETATTR_DONTCOPYKEY because the only copy of the key will be in lru_payload_t
     fh_setattr(l->fh, FH_SETATTR_DONTCOPYKEY, 0);
 
-    l->ll = ll_create(dim);
+    l->ll = ll_create(dim, sizeof(lru_payload_t));
     if (l->ll == NULL )
     {
         return(NULL);
@@ -85,13 +85,13 @@ int     lru_add(lru_t *lru, char *key, void *payload)
 {
     lru_payload_t *hashpayload;
     int fh_err;
-    void *slot;
+    void *slot, *slot_to_free;
     lru_payload_t *new;
 
     // ll_slot_new returns NULL on lru full, need to remove an entry and free it and try again
-    while (( slot = ll_slot_new(lru->ll)) == NULL )
+    while (( slot = ll_slot_new(lru->ll, (void *)&new)) == NULL )
     {
-        ll_remove_last(lru->ll, (void *)&hashpayload);
+        slot_to_free = ll_remove_last(lru->ll, (void *)&hashpayload);
 
         // now remove entry from hashtable by key
         if (( fh_err = fh_del(lru->fh, hashpayload->fh_key)) < 0 )
@@ -102,21 +102,20 @@ int     lru_add(lru_t *lru, char *key, void *payload)
             printf("fh size = %d, fh_del returns %d on %s, payload %s\n", size, fh_err, hashpayload->fh_key, (char *)hashpayload->payload);
         }
 
-        // free allocated key and payload
+        // free allocated key
         free(hashpayload->fh_key);
-        free(hashpayload);
+        // now that everything has been cleaned put it back to freelist
+        ll_slot_free(lru->ll, slot_to_free);
     }
 
-    // slot is a valid new entry now
-
-    // New fh opaque with lru payload + ll_slot_pointer + fh_key since used for ll too
-    new = malloc(sizeof(lru_payload_t));
-    assert(new != NULL);
+    // slot is a valid new entry now and new is a pointer to the payload (preallocated)
 
     new->payload = payload;
     new->ll_slot = slot;
+
     if ((new->fh_key = malloc(strlen(key) + 1)) == NULL) // this is only copy of key around
     {
+        ll_slot_free(lru->ll, slot);
         return(LRU_NO_MEMORY);
     }
     strcpy(new->fh_key, key);
@@ -127,32 +126,56 @@ int     lru_add(lru_t *lru, char *key, void *payload)
         if (lru_err == FH_DUPLICATED_ELEMENT)
         {
             free(new->fh_key);
-            free(new);
             ll_slot_free(lru->ll, slot);
             return LRU_DUPLICATED_ELEMENT;
         }
         if (lru_err == FH_NO_MEMORY)
         {
             free(new->fh_key);
-            free(new);
             ll_slot_free(lru->ll, slot);
             return LRU_NO_MEMORY;
         }
     }
 
-    ll_slot_set_payload(lru->ll, slot, new);
-
-    ll_slot_move_to_top(lru->ll, slot);
+    ll_slot_add_to_top(lru->ll, slot);
 
     return LRU_OK;
 }
 
+// check for presence of an element
+int     lru_check(lru_t *lru, char *key, void **payload)
+{
+    lru_payload_t *pload;
+    int fhslot;
+    int fherr;
+
+    //pload = (lru_payload_t *) fh_searchlock(lru->fh, key, &fhslot);
+    pload = (lru_payload_t *) fh_get(lru->fh, key, &fherr);
+
+    if ( pload == NULL )
+    {
+        //fh_releaselock(lru->fh, fhslot);
+        return LRU_ELEMENT_NOT_FOUND;
+    }
+
+    // copy pointer out
+    *payload = pload->payload;
+
+    ll_slot_move_to_top(lru->ll, pload->ll_slot);
+
+    //fh_releaselock(lru->fh, fhslot);
+
+    return(LRU_OK);
+}
+
+// clear the lru, empty it
 int   lru_clear(lru_t *lru)
 {
     lru_payload_t *hashpayload;
     int fh_err;
+    ll_slot_t *removed;
 
-    while ( ll_remove_last(lru->ll, (void *)&hashpayload) != NULL )
+    while (( removed = ll_remove_last(lru->ll, (void *)&hashpayload)) != NULL )
     {
         // remove entry from hashtable by key
         if (( fh_err = fh_del(lru->fh, hashpayload->fh_key)) < 0 )
@@ -164,44 +187,18 @@ int   lru_clear(lru_t *lru)
             return LRU_ELEMENT_NOT_FOUND;
         }
 
-        // free allocated key and payload
+        // free allocated key
         free(hashpayload->fh_key);
-        free(hashpayload);
+        ll_slot_free(lru->ll, removed);
     }
 
     return LRU_OK;
 }
 
 
-int     lru_check(lru_t *lru, char *key, void **payload)
-{
-    lru_payload_t *pload;
-    int fherr;
-
-    pload = (lru_payload_t *) fh_get(lru->fh, key, &fherr);
-
-    if ( pload == NULL )
-    {
-        return LRU_ELEMENT_NOT_FOUND;
-    }
-
-    // copy pointer out
-    *payload = pload->payload;
-
-    ll_slot_move_to_top(lru->ll, pload->ll_slot);
-
-    return(LRU_OK);
-}
-
 int     lru_destroy(lru_t *lru)
 {
-    void *payload;
-    // remove all allocated payloads
-    while ( ll_remove_last(lru->ll, &payload) != NULL )
-    {
-        free(payload);
-    }
-
+    lru_clear(lru);
     ll_destroy(lru->ll);
     fh_destroy(lru->fh);
     free(lru);
@@ -209,7 +206,7 @@ int     lru_destroy(lru_t *lru)
     return(1);
 }
 
-int print_payload(void *v)
+static int print_payload(void *v)
 {
     lru_payload_t *p = v;
     printf("key = %s, payload = %s, ll_slot = %p\n", p->fh_key, (char *)p->payload, p->ll_slot);
@@ -224,26 +221,26 @@ int lru_print(lru_t *lru)
 
 int lru_get_ll_data(lru_t *lru, int idx, char** key, void** payload, void** ll_slot)
 {
-    lru_payload_t* payloadPtr = NULL;
+    lru_payload_t *p = NULL;
 
-    int ll_err = ll_get_payload(lru->ll, idx, (void**) &payloadPtr);
+    int ll_err = ll_get_payload(lru->ll, idx, (void**) &p);
     if(ll_err != LL_OK)
         return ll_err;
 
-    (*key) = payloadPtr->fh_key;
-    (*payload) = payloadPtr->payload;
-    (*ll_slot) = payloadPtr->ll_slot;
+    (*key) = p->fh_key;
+    (*payload) = p->payload;
+    (*ll_slot) = p->ll_slot;
 
     return LRU_OK;
 }
 
 int   lru_get_ll_key_position(lru_t *lru, const char* key)
 {
-    lru_payload_t* payloadPtr = NULL;
+    lru_payload_t *p = NULL;
     int idx = 0;
-    while(ll_get_payload(lru->ll, idx, (void**) &payloadPtr) == LL_OK)
+    while(ll_get_payload(lru->ll, idx, (void**) &p) == LL_OK)
     {
-        if(strcmp(key, payloadPtr->fh_key) == 0)
+        if(strcmp(key, p->fh_key) == 0)
         {
             return idx;
         }
