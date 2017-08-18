@@ -506,6 +506,7 @@ void *fh_get(fh_t *fh, char *key, int *error)
 {
     int i;
     register fh_slot *h_slot;
+    void *opaque = NULL;
 
     i = fh->hash_function(key, fh->h_dim);
     _fh_lock(fh, i);
@@ -525,8 +526,9 @@ void *fh_get(fh_t *fh, char *key, int *error)
         _fh_unlock(fh, i);
         return (NULL);
     }
+    opaque = h_slot->opaque_obj;
     _fh_unlock(fh, i);
-    return (h_slot->opaque_obj);
+    return (opaque);
 }
 
 
