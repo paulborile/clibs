@@ -25,6 +25,8 @@
  */
 
 #define _XOPEN_SOURCE 700
+#define LL_SLOT_IN_FREELIST 0xFE
+#define LL_SLOT_DANGLING 0xFD // not in ll list nor in freelist
 
 
 #include <stdio.h>
@@ -41,7 +43,7 @@
 // exposes the node element and holds a key and a payload data. key is not used
 // in ll
 
-ll_t    *ll_create(int dim)
+ll_t    *ll_create(int dim, int payload_size)
 {
     ll_t *ll = NULL;
     // allocate ll_t
@@ -86,8 +88,22 @@ ll_t    *ll_create(int dim)
         {
             ll->freelist[i].next = &(ll->freelist[i+1]);
         }
+        ll->freelist[i].payload = malloc(payload_size);
+        if ( ll->freelist[i].payload == NULL )
+        {
+            free(ll);
+            return NULL;
+        }
+        ll->freelist[i].status = LL_SLOT_IN_FREELIST;
     }
     return ll;
+}
+
+// print slot contents
+static void ll_print_slot(ll_t *ll, ll_slot_t *slot)
+{
+    printf("slot = %p, status = %d, prev = %p, next = %p, payload = %p\n\tll->top = %p, ll->last = %p, ll->freelist = %p\n",
+           slot, slot->status, slot->prev, slot->next, slot->payload, ll->top, ll->last, ll->freelist);
 }
 
 static void _ll_lock(ll_t *ll)
@@ -115,7 +131,7 @@ static void _ll_unlock(ll_t *ll)
 }
 
 // ll_slot_new : alloc a slot i.e. get it from freelis of preallocated slots
-ll_slot_t *ll_slot_new(ll_t *ll) // gets a slot from the freelist
+ll_slot_t *ll_slot_new(ll_t *ll, void **payload) // gets a slot from the freelist
 {
     if ( ll == NULL ) return NULL;
 
@@ -131,7 +147,9 @@ ll_slot_t *ll_slot_new(ll_t *ll) // gets a slot from the freelist
     ll->freelist = ret->next;
 
     // clear before returning
-    ret->prev = ret->next = ret->payload = NULL;
+    ret->prev = ret->next = NULL;
+    ret->status = LL_SLOT_DANGLING;
+    *payload = ret->payload;
 
     _ll_unlock(ll);
 
@@ -148,11 +166,25 @@ void ll_slot_free(ll_t *ll, ll_slot_t *slot) // puts slot back in freelist
     ll_slot_t *oldfirst = ll->freelist;
     ll->freelist = slot;
     slot->next = oldfirst;
+    slot->status = LL_SLOT_IN_FREELIST;
     _ll_unlock(ll);
 
 }
 
-// removes last ll_slot, returns payload, puts slot back to freelist
+// _ll_slot_free : free a slot i.e. put it back in freelist no locks
+
+static void _ll_slot_free(ll_t *ll, ll_slot_t *slot) // puts slot back in freelist
+{
+    if ( ll == NULL ) return;
+
+    ll_slot_t *oldfirst = ll->freelist;
+    ll->freelist = slot;
+    slot->next = oldfirst;
+    slot->status = LL_SLOT_IN_FREELIST;
+}
+
+
+// removes last ll_slot, returns payload
 ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
 {
     if ( ll == NULL )
@@ -163,6 +195,7 @@ ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
 
     _ll_lock(ll);
 
+    // empty ll
     if ( ll->last == NULL )
     {
         // nothing to remove
@@ -170,9 +203,19 @@ ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
         return(NULL);
     }
 
+    // check for integrity : we may remove
+    if ( ll->last->prev != NULL )
+    {
+        ll_slot_t *slot = ll->last;
+        printf("remove_last() - NOT LAST : ll->last point to slot with valid prev\n");
+        ll_print_slot(ll, slot);
+
+        //assert(ll->last == slot);
+        abort();
+    }
+
+    // there is a last, save it
     ll_slot_t *oldlast = ll->last;
-    // copy out data
-    *payload = ll->last->payload;
     // now remove entry
     ll->last = oldlast->next;
 
@@ -186,16 +229,65 @@ ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
         // removing the last element
         ll->top = NULL;
     }
-    _ll_unlock(ll);
 
-    // now we have a dangling oldlast to put back to freelist
-    ll_slot_free(ll, oldlast);
+    // copy out data
+    *payload = oldlast->payload;
+    // now we have a dangling oldlast : caller will take care of putting it in freelist again after cleanup
+    oldlast->status = LL_SLOT_DANGLING;
+
+    _ll_unlock(ll);
     return oldlast;
 }
 
-// take a slot that might be either in list or just taken from freelist
-// and put it to top
+// add a slot and put it to top
 
+void ll_slot_add_to_top(ll_t *ll, ll_slot_t *slot)
+{
+    if ( ll == NULL)
+    {
+        printf("ll(%p) == null\n", ll);
+        return;
+    }
+
+    _ll_lock(ll);
+
+    // we can only add dangling slots
+    if ( slot->status != LL_SLOT_DANGLING )
+    {
+        printf("ll_slot_add_to_top() - adding a non dangling slot\n");
+        ll_print_slot(ll, slot);
+        _ll_unlock(ll);
+        return;
+    }
+
+    // checks
+    if (( slot->prev != NULL) || (slot->next != NULL))
+    {
+        printf("ll_slot_add_to_top() - prev and next are not NULL\n");
+        ll_print_slot(ll, slot);
+        _ll_unlock(ll);
+        return;
+    }
+
+    ll_slot_t *oldtop = ll->top;
+    // adding slot ( or only slot )to put at top
+    ll->top = slot;
+    if ( oldtop != NULL )
+    {
+        oldtop->next = slot;
+        slot->prev = oldtop;
+    }
+    // no last set ?
+    if ( ll->last == NULL)
+    {
+        ll->last = slot;
+    }
+
+    _ll_unlock(ll);
+    return;
+}
+
+// move an existing slot to top
 void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
 {
     if ( ll == NULL)
@@ -205,8 +297,16 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
     }
 
     _ll_lock(ll);
-    ll_slot_t *oldtop = ll->top;
 
+    // avoid moving to top slots in freelist or with null/dangling payload
+    // this may happen with heavy multi thread activity and small sizes : a lru_check attempts to move to top
+    // a slot which has already been removed and put into freelist and/or reallocated
+
+    if (( slot->status == LL_SLOT_IN_FREELIST ) || ( slot->status == LL_SLOT_DANGLING ))
+    {
+        _ll_unlock(ll);
+        return;
+    }
     // trying to move to top slot already at top
     if ( ll->top == slot)
     {
@@ -214,7 +314,8 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
         return;
     }
 
-    // new slot ( or only slot )to put at top
+    ll_slot_t *oldtop = ll->top;
+    // adding slot ( or only slot )to put at top
     if ((slot->prev == NULL) && (slot->next == NULL))
     {
         ll->top = slot;
@@ -235,7 +336,7 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
     // moving a member in the middle of list
     if ((slot->next != NULL) && (slot->prev != NULL ))
     {
-        // reconnecting
+        // extracting and reconnecting list
         slot->prev->next = slot->next;
         slot->next->prev = slot->prev;
 
@@ -258,7 +359,8 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
         // this should be last!!!
         if ( ll->last != slot )
         {
-            printf("slot->prev == NULL and ll->last != slot\n");
+            printf("move_to_top() - NOT LAST : slot->prev == NULL and ll->last != slot\n");
+            ll_print_slot(ll, slot);
             //assert(ll->last == slot);
             abort();
         }
@@ -278,12 +380,14 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
         return;
     }
 
+    // moving topmost to top
     if ( slot->next == NULL ) // this is already top
     {
         // this should be top!!!
         if ( ll->top != slot )
         {
-            printf("slot->next == NULL and ll->top != slot\n");
+            printf("move_to_top() - NOT TOP : slot->next == NULL and ll->top != slot\n");
+            ll_print_slot(ll, slot);
             //assert(ll->last == slot);
             abort();
         }
@@ -292,12 +396,6 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
 
     _ll_unlock(ll);
     return;
-}
-
-// ll_slot_set_payload : sets payload to a slot
-void ll_slot_set_payload(ll_t *ll, ll_slot_t *slot, void *payload)
-{
-    slot->payload = payload;
 }
 
 // destroy object, using original calloc saved pointer
@@ -343,8 +441,6 @@ int ll_get_payload(ll_t *ll, int idx, void** payload)
         i++;
     }
 
-// printf("i = %d\n", i);
-
     if(l == NULL)
     {
         return LL_ERROR_INDEX_OUT_OF_RANGE;
@@ -381,151 +477,3 @@ void ll_print(ll_t *ll, int (*payload_print)(void *))
         if (i>50) break;
     }
 }
-
-
-#ifdef TEST
-
-
-static void check_cons(ll_t *ll, int count)
-{
-    ll_slot_t *l = ll->last;
-    int size = 0;
-
-
-    if (ll->last->prev != NULL)
-    {
-        printf("inconsistency on last slot\n");
-        exit(1);
-
-    }
-
-    if (ll->top->next != NULL)
-    {
-        printf("inconsistency on top slot\n");
-        exit(1);
-
-    }
-
-    while (l != NULL)
-    {
-        l = l->next;
-        size++;
-    }
-
-    if (size != count)
-    {
-        printf("size %d, count %d\n", size, count);
-        exit(1);
-    }
-
-}
-
-
-
-int main(int argc, char **argv)
-{
-    if ( argc < 2 )
-    {
-        printf("usage : %s <llsize> [<loops>]\n", argv[0]);
-        exit(1);
-    }
-    void *payload;
-    int howmany = atoi(argv[1]);
-    int loops = 1;
-    if ( argv[2] )
-    {
-        loops = atoi(argv[2]);
-    }
-
-    ll_slot_t *all[howmany];
-    ll_t *ll;
-
-    for (int k=0; k<loops; k++)
-    {
-        ll = ll_create(howmany);
-        printf("ll_create(%d) ret %p\n", howmany, ll);
-
-        for (int i =0; i<howmany; i++)
-        {
-            ll_slot_t *n = ll_slot_new(ll);
-            if ( n == NULL )
-            {
-                printf("ll_slot_new ret NULL\n");
-                // put back last
-                ll_remove_last(ll, &payload);
-                printf("ll_removed_last %s\n", (char *) payload);
-                n = ll_slot_new(ll);
-            }
-            all[i] = n;
-            //printf("ll_slot_new ret %p\n", n);
-
-        #ifdef NO_ALLOC
-            n->payload = "bazinga";
-        #else
-            char *str = malloc(100);
-            sprintf(str, "payload%d", i);
-            n->payload = str;
-        #endif
-            ll_slot_move_to_top(ll, n);
-            //printf("last now is %s\n", (char *) ll->last->payload);
-            //printf("top now is %s\n", (char *) ll->top->payload);
-        }
-
-        check_cons(ll, howmany);
-
-        printf("===== moving to top ascending\n");
-
-        for (int i=0; i< howmany; i++)
-        {
-            //printf("last now is %s, last->next %s\n", (char *) ll->last->payload, (char *)ll->last->next->payload);
-            //printf("----- setting to top all[%d] = %s\n", i, (char *) all[i]->payload);
-            ll_slot_move_to_top(ll, all[i]);
-            //printf("last now is %s, last->next %s\n", (char *) ll->last->payload, (char *)ll->last->next->payload);
-            //printf("top now is %s\n", (char *) ll->top->payload);
-        }
-        check_cons(ll, howmany);
-
-        printf("===== moving to top descending\n");
-
-        for (int i=howmany-1; i>=0; i--)
-        {
-            //printf("last now is %s, last->next %s\n", (char *) ll->last->payload, (char *)ll->last->next->payload);
-            //printf("----- setting to top all[%d] = %s\n", i, (char *) all[i]->payload);
-            ll_slot_move_to_top(ll, all[i]);
-            //printf("last now is %s, last->next %s\n", (char *) ll->last->payload, (char *)ll->last->next->payload);
-            //printf("top now is %s\n", (char *) ll->top->payload);
-        }
-
-        check_cons(ll, howmany);
-
-        printf("===== random move top\n");
-
-        for (int i=0; i< howmany*100; i++)
-        {
-            int j = rand() % howmany;
-            ll_slot_move_to_top(ll, all[j]);
-        }
-
-#ifdef TRACE
-        printf("===== print all data\n");
-
-        for (int i=0; i< howmany; i++)
-        {
-            printf("all[%d] payload %s, next %s, prev %s\n", i, (char *) all[i]->payload,
-                   (char *) ((all[i]->next) ? all[i]->next->payload : "null"),
-                   (char *) ((all[i]->prev) ? all[i]->prev->payload : "null")
-                   );
-        }
-#endif
-
-        check_cons(ll, howmany);
-
-        ll_destroy(ll);
-
-    }
-
-
-    printf("Test passed!\n");
-}
-
-#endif
