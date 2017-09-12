@@ -19,7 +19,7 @@ clean:
 	rm -rf *.o lrutest lrusim ua-cache example
 
 ua-cache:
-	gcc -g -o ua-cache ua-cache.c ../../libfh/test/timing.o -lwurfl -llru -I .. -L .. -I ../../libfh -I ../../libfh/test -L ../../libfh -lfh
+	gcc -g -o ua-cache ua-cache.c md5.c ../../libfh/test/timing.o -lwurfl -llru -I .. -L .. -I ../../libfh -I ../../libfh/test -L ../../libfh -lfh
 
 lrusim:
 	gcc -g -o lrusim lrusim.c -llru -I .. -L .. -I ../../libfh -I ../../libfh/test -L ../../libfh -lfh

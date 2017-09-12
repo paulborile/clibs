@@ -17,6 +17,7 @@ extern "C" {
 #define LL_ERROR_LAST_SLOT_INCONSISTENCY -10
 #define LL_ERROR_TOP_SLOT_INCONSISTENCY -20
 #define LL_ERROR_INDEX_OUT_OF_RANGE -30
+#define LL_BAD_LL -40
 
 
 
@@ -34,7 +35,6 @@ struct _ll_t {
 	int	 magic;
 	int  size; // maximum number of objects
 	ll_slot_t *top, *last, *freelist, *save;
-	int fl_size;
 	pthread_mutex_t lock;
 };
 typedef struct _ll_t ll_t;

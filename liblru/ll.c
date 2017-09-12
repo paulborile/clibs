@@ -66,8 +66,6 @@ ll_t    *ll_create(int dim, int payload_size)
         return NULL;
     }
 
-    ll->fl_size = dim;
-
     // init ll critical region mutex
 #ifdef MUTEX_CHECKS
     pthread_mutexattr_t mta;
@@ -203,7 +201,8 @@ ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
         return(NULL);
     }
 
-    // check for integrity : we may remove
+    // check for integrity
+#ifdef INTEGRITY_CHECKS
     if ( ll->last->prev != NULL )
     {
         ll_slot_t *slot = ll->last;
@@ -213,6 +212,7 @@ ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
         //assert(ll->last == slot);
         abort();
     }
+#endif
 
     // there is a last, save it
     ll_slot_t *oldlast = ll->last;
@@ -261,6 +261,7 @@ void ll_slot_add_to_top(ll_t *ll, ll_slot_t *slot)
     }
 
     // checks
+#ifdef INTEGRITY_CHECKS
     if (( slot->prev != NULL) || (slot->next != NULL))
     {
         printf("ll_slot_add_to_top() - prev and next are not NULL\n");
@@ -268,6 +269,7 @@ void ll_slot_add_to_top(ll_t *ll, ll_slot_t *slot)
         _ll_unlock(ll);
         return;
     }
+#endif
 
     ll_slot_t *oldtop = ll->top;
     // adding slot ( or only slot )to put at top
@@ -357,6 +359,7 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
     if ( slot->prev == NULL ) // or slot->prev == NULL ???
     {
         // this should be last!!!
+#ifdef INTEGRITY_CHECKS
         if ( ll->last != slot )
         {
             printf("move_to_top() - NOT LAST : slot->prev == NULL and ll->last != slot\n");
@@ -364,6 +367,7 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
             //assert(ll->last == slot);
             abort();
         }
+#endif
         // reconnecting
         slot->next->prev = NULL;
         ll->last = slot->next;
@@ -384,6 +388,7 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
     if ( slot->next == NULL ) // this is already top
     {
         // this should be top!!!
+#ifdef INTEGRITY_CHECKS
         if ( ll->top != slot )
         {
             printf("move_to_top() - NOT TOP : slot->next == NULL and ll->top != slot\n");
@@ -391,6 +396,7 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
             //assert(ll->last == slot);
             abort();
         }
+#endif
         // nothing to do : already top item
     }
 
@@ -401,12 +407,23 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
 // destroy object, using original calloc saved pointer
 int ll_destroy(ll_t *ll)
 {
-    if (ll)
+    void *payload;
+    ll_slot_t *removed;
+
+    if (ll == NULL)
     {
-        free(ll->save);
-        pthread_mutex_destroy(&ll->lock);
-        free(ll);
+        return LL_BAD_LL;
     }
+
+    // scan freelist and free payloads
+    for (int i=0; i < ll->size; i++)
+    {
+        free(ll->save[i].payload);
+    }
+
+    free(ll->save);
+    pthread_mutex_destroy(&ll->lock);
+    free(ll);
     return LL_OK;
 }
 

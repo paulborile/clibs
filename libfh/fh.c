@@ -249,8 +249,10 @@ int fh_destroy(fh_t *fh)
             h_slot = h_slot->next;
 
             // free opaque object only if was allocated
-            if ((h_slot_current->opaque_obj) && (fh->h_datalen != 0))
+            if ((h_slot_current->opaque_obj) && (fh->h_datalen != FH_DATALEN_VOIDP))
+            {
                 free(h_slot_current->opaque_obj);
+            }
             if ( (fh->h_attr & FH_SETATTR_DONTCOPYKEY) == 0 )
             {
                 // we copy key so we have to free them
@@ -352,8 +354,6 @@ int fh_insert(fh_t *fh, char *key, void *block)
             FH_ALLOPQOBJ(new_opaque_obj, fh->h_datalen);
             if (new_opaque_obj == NULL)
             {
-                free(new_h_slot->key);
-                free(new_h_slot);
                 _fh_unlock(fh, i);
                 return (FH_NO_MEMORY);
             }
@@ -367,6 +367,11 @@ int fh_insert(fh_t *fh, char *key, void *block)
         {
             int len = strlen(block);
             FH_ALLOPQOBJ(new_opaque_obj, len + 1);
+            if (new_opaque_obj == NULL)
+            {
+                _fh_unlock(fh, i);
+                return (FH_NO_MEMORY);
+            }
             strcpy(new_opaque_obj, block);
         }
 

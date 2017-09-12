@@ -50,7 +50,13 @@ typedef struct _lru_payload_t lru_payload_t;
 
 lru_t *lru_create(int dim)
 {
+    if(dim <= 0)
+    {
+        return NULL;
+    }
+
     lru_t *l = NULL;
+
     // allocate lru_t
     l = (lru_t *) malloc(sizeof(lru_t));
     if (l == NULL)
@@ -91,7 +97,12 @@ int     lru_add(lru_t *lru, char *key, void *payload)
     // ll_slot_new returns NULL on lru full, need to remove an entry and free it and try again
     while (( slot = ll_slot_new(lru->ll, (void *)&new)) == NULL )
     {
-        slot_to_free = ll_remove_last(lru->ll, (void *)&hashpayload);
+        if (( slot_to_free = ll_remove_last(lru->ll, (void *)&hashpayload)) == NULL)
+        {
+            // freelist is empty (no free slots) but also ll list is empty
+            // reproduced with lru size 3 and 4 threads doing add
+            return(LRU_NO_MEMORY);
+        }
 
         // now remove entry from hashtable by key
         if (( fh_err = fh_del(lru->fh, hashpayload->fh_key)) < 0 )
@@ -109,6 +120,7 @@ int     lru_add(lru_t *lru, char *key, void *payload)
     }
 
     // slot is a valid new entry now and new is a pointer to the payload (preallocated)
+    assert(new);
 
     new->payload = payload;
     new->ll_slot = slot;
@@ -221,11 +233,13 @@ int lru_print(lru_t *lru)
 
 int lru_get_ll_data(lru_t *lru, int idx, char** key, void** payload, void** ll_slot)
 {
-    lru_payload_t *p = NULL;
+    void* voidp = NULL;
 
-    int ll_err = ll_get_payload(lru->ll, idx, (void**) &p);
+    int ll_err = ll_get_payload(lru->ll, idx, &voidp);
     if(ll_err != LL_OK)
         return ll_err;
+
+    lru_payload_t *p = voidp;
 
     (*key) = p->fh_key;
     (*payload) = p->payload;
@@ -236,10 +250,12 @@ int lru_get_ll_data(lru_t *lru, int idx, char** key, void** payload, void** ll_s
 
 int   lru_get_ll_key_position(lru_t *lru, const char* key)
 {
-    lru_payload_t *p = NULL;
+    void* voidp = NULL;
+
     int idx = 0;
-    while(ll_get_payload(lru->ll, idx, (void**) &p) == LL_OK)
+    while(ll_get_payload(lru->ll, idx, &voidp) == LL_OK)
     {
+        lru_payload_t *p = voidp;
         if(strcmp(key, p->fh_key) == 0)
         {
             return idx;
