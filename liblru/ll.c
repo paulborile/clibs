@@ -270,6 +270,9 @@ void ll_slot_add_to_top(ll_t *ll, ll_slot_t *slot)
         return;
     }
 #endif
+	
+    // clear DANGLING state
+    slot->status = 0;
 
     ll_slot_t *oldtop = ll->top;
     // adding slot ( or only slot )to put at top
