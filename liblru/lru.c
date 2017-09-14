@@ -67,7 +67,7 @@ lru_t *lru_create(int dim)
     l->magic = LRU_MAGIC_ID;
     l->size = dim; // maximum number of objects to kept in hash
 
-    l->fh = fh_create(dim*2, FH_DATALEN_VOIDP, NULL);
+    l->fh = fh_create(dim, FH_DATALEN_VOIDP, NULL);
     if ( l->fh == NULL )
     {
         return (NULL);
