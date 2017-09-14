@@ -1,3 +1,4 @@
+
 /*
    Copyright (c) 2003, Paul Stephen Borile
    All rights reserved.
@@ -24,6 +25,7 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>
@@ -46,14 +48,13 @@
 
 
 /*
- * using default hash found in cfu_hash (the perl one)
+ * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
  */
 
 static unsigned int fh_default_hash(const char *key, int dim) {
-    register size_t i = strlen(key);
     register unsigned int hv = 0; // could put a seed here instead of zero
     register const unsigned char *s = (unsigned char *)key;
-    while (i--) {
+    while (*s) {
         hv += *s++;
         hv += (hv << 10);
         hv ^= (hv >> 6);
@@ -70,6 +71,21 @@ static unsigned int fh_hash_size(unsigned int s) {
     unsigned int i = 1;
     while (i < s) i <<= 1;
     return i;
+}
+
+// old hash function
+static unsigned int fh_default_hash_orig(const char *key, int dim)
+{
+    unsigned long h = 0, g;
+    while (*key)
+    {
+        h = (h << 4) + *key++;
+        g = (h & 0xF0000000);
+        if (g)
+            h ^= g >> 24;
+        h &= ~g;
+    }
+    return h % dim;
 }
 
 // create hashtable object and init all data
@@ -209,22 +225,6 @@ int fh_getattr(fh_t *fh, int attr, int *value)
         return(FH_BAD_ATTR);
     }
     return (1);
-}
-
-
-// old hash function
-static unsigned int fh_default_hash_orig(char *name, int i)
-{
-    unsigned long h = 0, g;
-    while (*name)
-    {
-        h = (h << 4) + *name++;
-        g = (h & 0xF0000000);
-        if (g)
-            h ^= g >> 24;
-        h &= ~g;
-    }
-    return h % i;
 }
 
 /*
