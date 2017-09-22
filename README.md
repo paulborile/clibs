@@ -1,4 +1,4 @@
-# chash
+# clibs - a collection of basic tools in C
 
 C LRU cache
 
