@@ -25,17 +25,20 @@ static void _ch_unlock(ch_h *ch)
 
 /*
  * channel is golang channel inspired communication fifo channel
- * multithread aware. Put() are non blocking and data is copied in the channel
+ * multithread aware. Put() are non blocking and data is copied into the channel
  * while Get() can be blocking or non blocking. Use it to synch threads together
  */
 
-void *ch_create(int datalen)
+void *ch_create(ch_h *ch, int datalen)
 {
-    ch_h *ch = NULL;
-
-    if ((ch = (void *) malloc(sizeof(ch_h))) == NULL)
+    // no preallocated handle, create one
+    if (ch == NULL)
     {
-        return (NULL);
+        if ((ch = (void *) malloc(sizeof(ch_h))) == NULL)
+        {
+            return (NULL);
+        }
+        ch->allocated = 1;
     }
 
     ch->magic = CH_MAGIC_ID;

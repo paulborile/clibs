@@ -15,7 +15,8 @@ typedef struct _ch_elem_t ch_elem_t;
 
 struct _ch_h
 {
-    int magic;
+    short magic;
+    short allocated;
     int datalen;
     int count;
     int attr;
@@ -29,7 +30,7 @@ struct _ch_h
 typedef struct _ch_h ch_h;
 
 // error codes
-#define CH_MAGIC_ID 0xC0CCA
+#define CH_MAGIC_ID 0x0CCA
 #define CH_OK 1
 #define CH_BAD_HANDLE -1
 #define CH_NO_MEMORY -2
