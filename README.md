@@ -1,6 +1,19 @@
 # clibs - a collection of basic tools in C
 
-C LRU cache
+This repo contains standard components used to develop faster in C. All collection try to apply the same concepts :
+- multi-instantiable : a create function allocates-returns/sets-a-preallocated handle type to be used to refer to that instance of the object
+- information hiding : user data is threated as a payload and payloads may of type STRING, VOIDP or FIXEDLEN (*_DATALEN_STRING, *_DATALEN_VOIDP or size)
+- thread safe : when this applies the collection methods (excluding create/destroy) can be used safely by different threads 
+
+Available components :
+
+- libfh : a fast, multi-thread optimized open hash hashtable
+- liblru : lru cache based on fh
+- channel : a golang inspired channel object with multi-thread aware blocking get operations
+- vector : a simple dynamic vector, non thread safe
+
+
+## C LRU cache
 
 liblru : is a fast, thread safe Least Recently Used cache, basically a fixed size hashtable that discards least used items first. It is based on libfh (Fast Hash, se below) and libll (lru list) that keeps items ordered by use. Keys are always strings and payloads are void * so you will have to allocate everything outside and take care of freeing as well when/if needed.
 Sample code :
@@ -51,7 +64,7 @@ Average lru_add time in nanosecs : 156.32
 
 ```
 
-C Hashtable
+## C Hashtable
 
 libfh : fast hashtable, advanced multi threading support, key is only string and is always copied inside (unless FH_SETATTR_DONTCOPYKEY is set),
 opaque data is allocated and copied inside hash and can be string (datalen = FH_DATALEN_STRING), fixed lenght (datalen = sizeof data) or datalen = FH_DATALEN_VOIDP just copies void pointer.
