@@ -7,8 +7,8 @@ This repo contains standard components used to develop faster in C. All collecti
 
 Available components :
 
-- libfh : a fast, multi-thread optimized open hash hashtable
-- liblru : lru cache based on fh
+- fh : a fast, multi-thread optimized open hash hashtable
+- lru : lru cache based on fh
 - channel : a golang inspired channel object with multi-thread aware blocking get operations
 - vector : a simple dynamic vector, non thread safe
 
