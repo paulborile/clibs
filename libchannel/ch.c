@@ -386,6 +386,9 @@ int ch_destroy(ch_h *ch)
     }
 
     pthread_mutex_destroy(&(ch->ch_mutex));
-    free(ch);
+    if (ch->allocated)
+    {
+        free(ch);
+    }
     return CH_OK;
 }
