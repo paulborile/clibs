@@ -19,7 +19,6 @@ struct Data
 };
 typedef struct Data Data;
 
-char *gpcPrgName;
 int verbose = 0;
 
 
@@ -48,22 +47,22 @@ void get_command_line(int argc, char **argv)
 int main(int argc, char **argv)
 {
     int i = 0;
-    int iRet = 0;
+    int ret = 0;
     int ciclo = 1;
-    char *pcfinger = NULL;
-    char acbuffer[BUF_SIZE];
+    char *finger = NULL;
+    char buffer[BUF_SIZE];
     void *p = NULL;
-    char acPath[BUF_SIZE];
+    char path[BUF_SIZE];
     void *pch_h = NULL;
-    char acAttr[3];
-    char acVal[3];
-    int Attr;
-    int Val;
+    char attr[3];
+    char val[3];
+    int int_attr;
+    int int_val;
     Data *object = NULL;
     Data object_result;
-    char acName[BUF_SIZE];
-    char acThreads[3];
-    int iNumThreads;
+    char name[BUF_SIZE];
+    char threads[3];
+    int num_threads;
     pthread_t *thread_reader;
     pthread_t *thread_writer;
     pthread_attr_t tattr;
@@ -73,15 +72,13 @@ int main(int argc, char **argv)
     pthread_attr_setstacksize(&tattr, 50 * 1024);
     pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
 
-    gpcPrgName = argv[0];
-
     get_command_line(argc, argv);
 
     while (ciclo == 1)
     {
-        iRet = 0;
-        pcfinger = NULL;
-        acbuffer[0] = '\0';
+        ret = 0;
+        finger = NULL;
+        buffer[0] = '\0';
 
 
         if (verbose)
@@ -89,14 +86,14 @@ int main(int argc, char **argv)
             printf("ch-> ");
             fflush(stdout);
         }
-        fgets(acbuffer, BUF_SIZE, stdin);
+        fgets(buffer, BUF_SIZE, stdin);
 
-        if ((pcfinger = (char *) strchr(acbuffer, '\n')) != NULL)
+        if ((finger = (char *) strchr(buffer, '\n')) != NULL)
         {
-            *pcfinger = '\0';
+            *finger = '\0';
         }
 
-        if (strcmp(acbuffer, "help") == 0)
+        if (strcmp(buffer, "help") == 0)
         {
             if (verbose)
             {
@@ -118,11 +115,11 @@ int main(int argc, char **argv)
                 printf("verbose_off             : does not show messages\n\n");
             }
         }
-        else if (strcmp(acbuffer, "exit") == 0)
+        else if (strcmp(buffer, "exit") == 0)
         {
             ciclo = 0;
         }
-        else if (strcmp(acbuffer, "create") == 0)
+        else if (strcmp(buffer, "create") == 0)
         {
             if (p != NULL)
             {
@@ -135,7 +132,7 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            p = ch_create(sizeof(Data));
+            p = ch_create(NULL, sizeof(Data));
 
             if (p == NULL)
             {
@@ -159,7 +156,7 @@ int main(int argc, char **argv)
                 }
             }
         }
-        else if (strcmp(acbuffer, "setattr") == 0)
+        else if (strcmp(buffer, "setattr") == 0)
         {
             if (verbose)
             {
@@ -169,25 +166,25 @@ int main(int argc, char **argv)
                 fflush(stdout);
             }
 
-            acAttr[0] = '\0';
+            attr[0] = '\0';
 
-            fgets(acAttr, 3, stdin);
+            fgets(attr, 3, stdin);
 
-            if ((pcfinger = (char *) strchr(acAttr, '\n')) != NULL)
+            if ((finger = (char *) strchr(attr, '\n')) != NULL)
             {
-                *pcfinger = '\0';
+                *finger = '\0';
             }
 
-            if (strcmp(acAttr, "\033") == 0)
+            if (strcmp(attr, "\033") == 0)
                 continue;
 
-            Attr = atoi(acAttr);
+            int_attr = atoi(attr);
 
             if (verbose)
             {
                 printf("\nvalue or ESC to exit :\n");
 
-                switch (Attr)
+                switch (int_attr)
                 {
                 case CH_BLOCKING_MODE:
 
@@ -204,25 +201,25 @@ int main(int argc, char **argv)
                 fflush(stdout);
             }
 
-            acVal[0] = '\0';
+            val[0] = '\0';
 
-            fgets(acVal, 3, stdin);
+            fgets(val, 3, stdin);
 
-            if ((pcfinger = (char *) strchr(acVal, '\n')) != NULL)
+            if ((finger = (char *) strchr(val, '\n')) != NULL)
             {
-                *pcfinger = '\0';
+                *finger = '\0';
             }
 
-            if (strcmp(acVal, "\033") == 0)
+            if (strcmp(val, "\033") == 0)
                 continue;
 
-            Val = atoi(acVal);
+            int_val = atoi(val);
 
-            if ((iRet = ch_setattr(p, Attr, Val)) != 0)
+            if ((ret = ch_setattr(p, int_attr, int_val)) != 0)
             {
                 if (verbose)
                 {
-                    printf("ch_setattr FAILED. iRet = %d\n\n", iRet);
+                    printf("ch_setattr FAILED. ret = %d\n\n", ret);
                 }
             }
             else
@@ -233,7 +230,7 @@ int main(int argc, char **argv)
                 }
             }
         }
-        else if (strcmp(acbuffer, "getattr") == 0)
+        else if (strcmp(buffer, "getattr") == 0)
         {
             if (verbose)
             {
@@ -244,25 +241,25 @@ int main(int argc, char **argv)
                 fflush(stdout);
             }
 
-            acAttr[0] = '\0';
+            attr[0] = '\0';
 
-            fgets(acAttr, 3, stdin);
+            fgets(attr, 3, stdin);
 
-            if ((pcfinger = (char *) strchr(acAttr, '\n')) != NULL)
+            if ((finger = (char *) strchr(attr, '\n')) != NULL)
             {
-                *pcfinger = '\0';
+                *finger = '\0';
             }
 
-            if (strcmp(acAttr, "\033") == 0)
+            if (strcmp(attr, "\033") == 0)
                 continue;
 
-            Attr = atoi(acAttr);
+            int_attr = atoi(attr);
 
-            if ((iRet = ch_getattr(p, Attr, &Val)) != 0)
+            if ((ret = ch_getattr(p, int_attr, &int_val)) != 0)
             {
                 if (verbose)
                 {
-                    printf("ch_getattr FAILED. iRet = %d\n\n", iRet);
+                    printf("ch_getattr FAILED. ret = %d\n\n", ret);
                 }
             }
             else
@@ -271,17 +268,17 @@ int main(int argc, char **argv)
                 {
                     printf("ch_getattr SUCCESS.\n");
 
-                    printf("\nAttribute %d Value %d\n\n", Attr, Val);
+                    printf("\nint_attribute %d int_value %d\n\n", int_attr, int_val);
                 }
             }
         }
-        else if (strcmp(acbuffer, "destroy") == 0)
+        else if (strcmp(buffer, "destroy") == 0)
         {
-            if ((iRet = ch_destroy(p)) != 0)
+            if ((ret = ch_destroy(p)) != 0)
             {
                 if (verbose)
                 {
-                    printf("ch_destroy FAILED. iRet %d\n\n", iRet);
+                    printf("ch_destroy FAILED. ret %d\n\n", ret);
                 }
             }
             else
@@ -294,29 +291,29 @@ int main(int argc, char **argv)
 
             p = NULL;
         }
-        else if (strcmp(acbuffer, "clean") == 0)
+        else if (strcmp(buffer, "clean") == 0)
         {
-            if ((iRet = ch_clean(p)) < 0)
+            if ((ret = ch_clean(p)) < 0)
             {
                 if (verbose)
                 {
-                    printf("ch_clean FAILED. iRet %d\n\n", iRet);
+                    printf("ch_clean FAILED. ret %d\n\n", ret);
                 }
             }
             else
             {
                 if (verbose)
                 {
-                    printf("ch_clean SUCCESS - cleaned %d elements.\n\n", iRet);
+                    printf("ch_clean SUCCESS - cleaned %d elements.\n\n", ret);
                 }
             }
         }
-        else if (strcmp(acbuffer, "put") == 0
-                 || strcmp(acbuffer, "puthead") == 0)
+        else if (strcmp(buffer, "put") == 0
+                 || strcmp(buffer, "puthead") == 0)
         {
             int pos;
 
-            acName[0] = '\0';
+            name[0] = '\0';
 
             if (verbose)
             {
@@ -324,14 +321,14 @@ int main(int argc, char **argv)
                 fflush(stdout);
             }
 
-            fgets(acName, BUF_SIZE, stdin);
+            fgets(name, BUF_SIZE, stdin);
 
-            if ((pcfinger = (char *) strchr(acName, '\n')) != NULL)
+            if ((finger = (char *) strchr(name, '\n')) != NULL)
             {
-                *pcfinger = '\0';
+                *finger = '\0';
             }
 
-            if (strcmp(acName, "\033") == 0)
+            if (strcmp(name, "\033") == 0)
                 continue;
 
             ch_getattr(p, CH_COUNT, &pos);
@@ -340,15 +337,15 @@ int main(int argc, char **argv)
 
             object->pos = pos + 1;
 
-            strcpy(object->name, acName);
+            strcpy(object->name, name);
 
-            if (strcmp(acbuffer, "put") == 0)
+            if (strcmp(buffer, "put") == 0)
             {
-                if ((iRet = ch_put(p, object)) <= 0)
+                if ((ret = ch_put(p, object)) <= 0)
                 {
                     if (verbose)
                     {
-                        printf("ch_put FAILED. iRet %d\n\n", iRet);
+                        printf("ch_put FAILED. ret %d\n\n", ret);
                     }
                 }
                 else
@@ -356,18 +353,18 @@ int main(int argc, char **argv)
                     if (verbose)
                     {
                         printf("ch_put SUCCESS.\n");
-                        printf("\nchannel elements %d.\n\n", iRet);
+                        printf("\nchannel elements %d.\n\n", ret);
                     }
                 }
             }
 
-            if (strcmp(acbuffer, "puthead") == 0)
+            if (strcmp(buffer, "puthead") == 0)
             {
-                if ((iRet = ch_put_head(p, object)) <= 0)
+                if ((ret = ch_put_head(p, object)) <= 0)
                 {
                     if (verbose)
                     {
-                        printf("ch_put_head FAILED. iRet %d\n\n", iRet);
+                        printf("ch_put_head FAILED. ret %d\n\n", ret);
                     }
                 }
                 else
@@ -375,14 +372,14 @@ int main(int argc, char **argv)
                     if (verbose)
                     {
                         printf("ch_put_head SUCCESS.\n");
-                        printf("\nchannel elements %d.\n\n", iRet);
+                        printf("\nchannel elements %d.\n\n", ret);
                     }
                 }
             }
         }
-        else if (strcmp(acbuffer, "get") == 0 || strcmp(acbuffer, "peek") == 0)
+        else if (strcmp(buffer, "get") == 0 || strcmp(buffer, "peek") == 0)
         {
-            if (strcmp(acbuffer, "get") == 0)
+            if (strcmp(buffer, "get") == 0)
             {
                 if (ch_get(p, &object_result) == NULL)
                 {
@@ -402,7 +399,7 @@ int main(int argc, char **argv)
                 }
             }
 
-            if (strcmp(acbuffer, "peek") == 0)
+            if (strcmp(buffer, "peek") == 0)
             {
                 if ( ch_peek(p, &object_result) == NULL)
                 {
@@ -422,9 +419,9 @@ int main(int argc, char **argv)
                 }
             }
         }
-        else if (strcmp(acbuffer, "thread_reader") == 0)
+        else if (strcmp(buffer, "thread_reader") == 0)
         {
-            acThreads[0] = '\0';
+            threads[0] = '\0';
 
             if (verbose)
             {
@@ -432,34 +429,34 @@ int main(int argc, char **argv)
                 fflush(stdout);
             }
 
-            fgets(acThreads, BUF_SIZE, stdin);
+            fgets(threads, BUF_SIZE, stdin);
 
-            if ((pcfinger = (char *) strchr(acThreads, '\n')) != NULL)
+            if ((finger = (char *) strchr(threads, '\n')) != NULL)
             {
-                *pcfinger = '\0';
+                *finger = '\0';
             }
 
-            if (strcmp(acThreads, "\033") == 0)
+            if (strcmp(threads, "\033") == 0)
                 continue;
 
-            iNumThreads = atoi(acThreads);
+            num_threads = atoi(threads);
 
             ch_setattr(p, CH_BLOCKING_MODE, CH_ATTR_BLOCKING_GET);
 
             thread_reader =
-                (pthread_t *) calloc(iNumThreads, sizeof(pthread_t));
+                (pthread_t *) calloc(num_threads, sizeof(pthread_t));
 
             /* Creo i thread */
             printf("Creating threads : ");
             fflush(stdout);
 
-            for (i = 0; i < iNumThreads; i++)
+            for (i = 0; i < num_threads; i++)
             {
-                if ((iRet = pthread_create(&thread_reader[i], &tattr,
-                                           (void *) Thread_Routine_Reader,
-                                           (void *) p)) < 0)
+                if ((ret = pthread_create(&thread_reader[i], &tattr,
+                                          (void *) Thread_Routine_Reader,
+                                          (void *) p)) < 0)
                 {
-                    printf("TEST FAILED !!! : pthread_create ret %d\n\n", iRet);
+                    printf("TEST FAILED !!! : pthread_create ret %d\n\n", ret);
 
                     return (0);
                 }
@@ -469,9 +466,9 @@ int main(int argc, char **argv)
             }
             printf("\n");
         }
-        else if (strcmp(acbuffer, "thread_writer") == 0)
+        else if (strcmp(buffer, "thread_writer") == 0)
         {
-            acThreads[0] = '\0';
+            threads[0] = '\0';
 
             if (verbose)
             {
@@ -479,32 +476,32 @@ int main(int argc, char **argv)
                 fflush(stdout);
             }
 
-            fgets(acThreads, BUF_SIZE, stdin);
+            fgets(threads, BUF_SIZE, stdin);
 
-            if ((pcfinger = (char *) strchr(acThreads, '\n')) != NULL)
+            if ((finger = (char *) strchr(threads, '\n')) != NULL)
             {
-                *pcfinger = '\0';
+                *finger = '\0';
             }
 
-            if (strcmp(acThreads, "\033") == 0)
+            if (strcmp(threads, "\033") == 0)
                 continue;
 
-            iNumThreads = atoi(acThreads);
+            num_threads = atoi(threads);
 
             thread_writer =
-                (pthread_t *) calloc(iNumThreads, sizeof(pthread_t));
+                (pthread_t *) calloc(num_threads, sizeof(pthread_t));
 
             /* Creo i thread */
             printf("Creating threads : ");
             fflush(stdout);
 
-            for (i = 0; i < iNumThreads; i++)
+            for (i = 0; i < num_threads; i++)
             {
-                if ((iRet = pthread_create(&thread_writer[i], &tattr,
-                                           (void *) Thread_Routine_Writer,
-                                           (void *) p)) < 0)
+                if ((ret = pthread_create(&thread_writer[i], &tattr,
+                                          (void *) Thread_Routine_Writer,
+                                          (void *) p)) < 0)
                 {
-                    printf("TEST FAILED !!! : pthread_create ret %d\n\n", iRet);
+                    printf("TEST FAILED !!! : pthread_create ret %d\n\n", ret);
 
                     return (0);
                 }
@@ -514,7 +511,7 @@ int main(int argc, char **argv)
             }
             printf("\n");
         }
-        else if (strcmp(acbuffer, "verbose") == 0)
+        else if (strcmp(buffer, "verbose") == 0)
         {
             verbose = 1;
         }

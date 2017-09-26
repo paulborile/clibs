@@ -1,4 +1,3 @@
-
 /*
    Copyright (c) 2003, Paul Stephen Borile
    All rights reserved.
@@ -24,7 +23,6 @@
    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 
 #ifndef CH_H
 #define CH_H
