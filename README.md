@@ -15,7 +15,7 @@ Available components :
 
 ## C LRU cache
 
-liblru : is a fast, thread safe Least Recently Used cache, basically a fixed size hashtable that discards least used items first. It is based on libfh (Fast Hash, se below) and libll (lru list) that keeps items ordered by use. Keys are always strings and payloads are void * so you will have to allocate everything outside and take care of freeing as well when/if needed.
+liblru : is a fast, thread safe Least Recently Used cache, basically a fixed size hashtable that discards least used items first. It is based on libfh (Fast Hash, se below) and on an internal lru list that keeps items ordered by use. Keys are always strings and payloads are void * so you will have to allocate everything outside and take care of freeing as well when/if needed.
 Sample code :
 
 ```
