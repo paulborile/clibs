@@ -3,7 +3,7 @@
 This repo contains standard components used to develop faster in C. All collection try to apply the same concepts :
 - multi-instantiable : a create function allocates-returns/sets-a-preallocated handle type to be used to refer to that instance of the object
 - information hiding : user data is threated as a payload and payloads may of type STRING, VOIDP or FIXEDLEN (*_DATALEN_STRING, *_DATALEN_VOIDP or size)
-- thread safe : when this applies the collection methods (excluding create/destroy) can be used safely by different threads 
+- thread safeness : when this applies the collection methods (excluding create/destroy) can be used safely by different threads 
 
 Available components :
 
