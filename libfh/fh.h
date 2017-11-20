@@ -1,6 +1,27 @@
 /*
- * Copyright (c) 2003, Paul Stephen Borile
- * All rights reserved.
+   Copyright (c) 2003, Paul Stephen Borile
+   All rights reserved.
+
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
+   1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+   notice
+   3. Neither the name of the Paul Stephen Borile nor the
+   names of its contributors may be used to endorse or promote products
+   derived from this software without specific prior written permission.
+
+   THIS SOFTWARE IS PROVIDED BY Paul Stephen Borile ''AS IS'' AND ANY
+   EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL Paul Stephen Borile BE LIABLE FOR ANY
+   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+   ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef FH_H
@@ -12,13 +33,16 @@ extern "C" {
 
 /** hash magic */
 #define FH_MAGIC_ID			0xCACCA
+#define FHE_MAGIC_ID        0xBACCA
 /** magic used during destroy */
 //#define FH_MAGIC_ID_DESTROY  0xFF00
 
 #define FH_BAD_HANDLE	-1 // handle null of not pointing to ft_h
+#define FH_INVALID_KEY    -1000 // NULL key
 #define FH_ELEMENT_NOT_FOUND	-2000 // hash element not found
 #define FH_DUPLICATED_ELEMENT	-3000 // duplicated key
 #define FH_NO_MEMORY	-4000 // malloc/calloc fails
+#define FH_BUFFER_NULL    -5000 // buffer passed null (fh_search)
 #define FH_WRONG_DATALEN	-6000 // wrong datalen for fh_search, use fh_get
 #define FH_DIM_INVALID	-7000 // bad dimension
 #define FH_BAD_ATTR		-9000 // bad attribute to get/setattr
@@ -33,6 +57,10 @@ extern "C" {
 // datalen values
 #define FH_DATALEN_STRING	-1
 #define FH_DATALEN_VOIDP		0
+
+// Sort order of enumerator
+#define FH_ENUM_SORTED_ASC  1
+#define FH_ENUM_SORTED_DESC 2
 
 /*
  * Concurrency
@@ -55,13 +83,6 @@ struct _f_hash {
 	fh_slot *h_slot;
 };
 typedef struct _f_hash f_hash;
-
-/* header for hasdump - not used */
-struct _dump_info {
-	// key len
-	int key_len;
-};
-typedef struct _dump_info dump_info;
 
 // fh object
 struct _fh_t{
@@ -96,13 +117,32 @@ int 	fh_scan_start(fh_t *fh, int pos, void **slot);
 // scans and copies out data
 int 	fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque, int opaque_size);
 // experimental
-void *fh_searchlock(fh_t *fh, char *key, int *slot);
-void	fh_releaselock(fh_t *fh, int slot);
+void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error);
+void	fh_releaselock(fh_t *fh, int slot, int *error);
 
-/*
-int 	fh_dump(fh_t *fh, char *file);
-int 	fh_load(fh_t *fh, char *file );
-*/
+struct _fh_elem_t {
+    char *key;
+    void *opaque_obj;
+};
+typedef struct _fh_elem_t fh_elem_t;
+
+struct _fh_enum_t
+{
+    int  magic; // Magic number
+    int idx;		// index of current element
+    fh_elem_t *elem_list;		// list of elements
+    int size;		// number of elements
+    int is_valid;		// valid flag for enumerator (1 = valid; 0 = not valid)
+};
+typedef struct _fh_enum_t fh_enum_t;
+
+// New methods for scan completely the hashtable.
+fh_enum_t *fh_enum_create(fh_t *fh, int sort_order, int *error);
+int fh_enum_is_valid(fh_enum_t *fhe);
+int fh_enum_move_next(fh_enum_t *fhe);
+fh_elem_t *fh_enum_get_value(fh_enum_t *fhe, int *error);
+// fh_elem_t **fh_enum_get_all_values(fh_enum_t *fhe);
+int fh_enum_destroy(fh_enum_t *fhe);
 
 #ifdef __cplusplus
 }

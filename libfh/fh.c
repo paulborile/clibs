@@ -1,4 +1,3 @@
-
 /*
    Copyright (c) 2003, Paul Stephen Borile
    All rights reserved.
@@ -25,7 +24,6 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>
@@ -46,6 +44,9 @@
 
 #define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE);
 
+#define FH_KEY_CHECK(key) if (!key || strlen(key) == 0) return (FH_INVALID_KEY);
+
+#define FHE_CHECK(f) if ((!f) || (f->magic != FHE_MAGIC_ID)) return (FH_BAD_HANDLE);
 
 /*
  * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
@@ -86,6 +87,17 @@ static unsigned int fh_default_hash_orig(const char *key, int dim)
         h &= ~g;
     }
     return h % dim;
+}
+
+// Compare functions to sort enumerator
+int fh_ascfunc(const void *a, const void *b)
+{
+   return ( strcmp(((fh_elem_t *)a)->key, ((fh_elem_t *)b)->key) );
+}
+
+int fh_descfunc(const void *a, const void *b)
+{
+   return ( strcmp(((fh_elem_t *)b)->key, ((fh_elem_t *)a)->key) );
 }
 
 // create hashtable object and init all data
@@ -173,7 +185,6 @@ static void _fh_unlock_fh(fh_t *fh)
 
 static void _fh_lock_all(fh_t *fh)
 {
-    int i;
     for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
     {
         pthread_mutex_lock(&(fh->h_lock[i]));
@@ -235,10 +246,11 @@ int fh_destroy(fh_t *fh)
 {
     int i;
     register fh_slot *h_slot = NULL, *h_slot_current = NULL;
-    f_hash *f_h = (f_hash *) fh->hash_table;
     FH_CHECK(fh);
+    f_hash *f_h = (f_hash *) fh->hash_table;
 
     _fh_lock_all(fh);
+    fh->h_magic = 0;
     // remove all entries
     for (i = 0; i < fh->h_dim; i++)
     {
@@ -287,6 +299,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
     register fh_slot *h_slot, *new_h_slot;
     void *new_opaque_obj = NULL;
     FH_CHECK(fh);
+    FH_KEY_CHECK(key);
 
     // looking for slot
 
@@ -398,6 +411,7 @@ int fh_del(fh_t *fh, char *key)
     int i;
     register fh_slot *h_slot, *prev_h_slot = NULL;
     FH_CHECK(fh);
+    FH_KEY_CHECK(key);
 
     // looking for slot
 
@@ -463,6 +477,8 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     int i;
     register fh_slot *h_slot;
     FH_CHECK(fh);
+    FH_KEY_CHECK(key);
+    if(!block) return(FH_BUFFER_NULL);
 
     if ( fh->h_datalen == FH_DATALEN_VOIDP )
     {
@@ -498,6 +514,12 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
         }
         else if ( fh->h_datalen == FH_DATALEN_STRING ) // copy string
         {
+            if(block_size < 0)
+            {
+                _fh_unlock(fh, i);
+                return(FH_DIM_INVALID);
+            }
+
             strncpy(block, h_slot->opaque_obj, block_size);
         }
     }
@@ -509,6 +531,18 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
 // search the hash and return pointer to the opaque_obj or NULL
 void *fh_get(fh_t *fh, char *key, int *error)
 {
+    if(!fh || fh->h_magic != FH_MAGIC_ID)
+    {
+        *error = FH_BAD_HANDLE;
+        return NULL;
+    }
+
+    if(!key || strlen(key) == 0)
+    {
+        *error = FH_INVALID_KEY;
+        return NULL;
+    }
+
     int i;
     register fh_slot *h_slot;
     void *opaque = NULL;
@@ -539,10 +573,22 @@ void *fh_get(fh_t *fh, char *key, int *error)
 
 // search and return locked pointer to opaque
 // allows modifying an opaque object entry without del/insert
-void *fh_searchlock(fh_t *fh, char *key, int *slot)
+void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
 {
     int i;
     register fh_slot *h_slot;
+
+    if(!fh || fh->h_magic != FH_MAGIC_ID)
+    {
+        *error = FH_BAD_HANDLE;
+        return NULL;
+    }
+
+    if(!key || strlen(key) == 0)
+    {
+        *error = FH_INVALID_KEY;
+        return NULL;
+    }
 
     i = fh->hash_function(key, fh->h_dim);
     _fh_lock(fh, i);
@@ -558,7 +604,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot)
 
     if ( h_slot == NULL )
     {
-        *slot = FH_ELEMENT_NOT_FOUND;
+        *error = FH_ELEMENT_NOT_FOUND;
         _fh_unlock(fh, i);
         return (NULL);
     }
@@ -567,8 +613,14 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot)
 }
 
 // release a lock left from fh_searchlock
-void fh_releaselock(fh_t *fh, int slot)
+void fh_releaselock(fh_t *fh, int slot, int *error)
 {
+    if(!fh || fh->h_magic != FH_MAGIC_ID)
+    {
+        *error = FH_BAD_HANDLE;
+        return;
+    }
+
     _fh_unlock(fh, slot);
 }
 
@@ -597,8 +649,114 @@ int fh_scan_start(fh_t *fh, int start_index, void **slot)
     return (FH_ELEMENT_NOT_FOUND);
 }
 
+// Enum creation. List of elements is allocated to the number of elements contained in hash table.
+// Idx is the current element index, initialized to the first element
+// Is_valid indicates if enumerator scan reached the end (0) or not (1).
+fh_enum_t *fh_enum_create(fh_t *fh, int sort_order, int *error)
+{
+    if(!fh || fh->h_magic != FH_MAGIC_ID)
+    {
+        *error = FH_BAD_HANDLE;
+        return NULL;
+    }
+
+    fh_enum_t *fhe = malloc(sizeof(fh_enum_t));
+    fhe->elem_list = malloc(sizeof(fh_elem_t) * fh->h_elements);
+    fhe->idx = 0;
+    fhe->is_valid = 1;
+    fhe->magic = FHE_MAGIC_ID;
+
+    int enum_index = 0;
+    for (int i = 0; i < fh->h_dim; i++)
+    {
+        _fh_lock(fh, i);
+        if (fh->hash_table[i].h_slot != NULL)
+        {
+            // Get first element in slot
+            fh_slot *current = fh->hash_table[i].h_slot;
+            fhe->elem_list[enum_index].key = current->key;
+            fhe->elem_list[enum_index].opaque_obj = current->opaque_obj;
+            enum_index++;
+
+            // Chek if other elements are set in this slot
+            while(current->next != NULL)
+            {
+                current = current->next;
+                fhe->elem_list[enum_index].key = current->key;
+                fhe->elem_list[enum_index].opaque_obj = current->opaque_obj;
+                enum_index++;
+            }
+        }
+        _fh_unlock(fh, i);
+    }
+    fhe->size = enum_index;
+
+    if(sort_order == FH_ENUM_SORTED_ASC)
+    {
+        qsort(fhe->elem_list, enum_index, sizeof(fh_elem_t), fh_ascfunc);
+    }
+    else if(sort_order == FH_ENUM_SORTED_DESC)
+    {
+        qsort(fhe->elem_list, enum_index, sizeof(fh_elem_t), fh_descfunc);
+    }
+
+    return fhe;
+}
+
+// Return is_valid value, if 1 enumerator hasn't reached the end of the list
+int fh_enum_is_valid(fh_enum_t *fhe)
+{
+    FHE_CHECK(fhe);
+
+    return fhe->is_valid;
+}
+
+// Increment idx, to get next element from list. If idx isn't lower than list size, enumerator became invalid (has reached the end of list)
+int fh_enum_move_next(fh_enum_t *fhe)
+{
+    FHE_CHECK(fhe);
+
+    fhe->idx++;
+
+    if(fhe->idx >= fhe->size)
+    {
+        fhe->is_valid = 0;
+    }
+
+    return 1;
+}
+
+// Get current element in the list.
+fh_elem_t *fh_enum_get_value(fh_enum_t *fhe, int *error)
+{
+    if(!fhe || fhe->magic != FHE_MAGIC_ID)
+    {
+        *error = FH_BAD_HANDLE;
+        return NULL;
+    }
+
+    if(fhe->is_valid == 1)
+    {
+        return &fhe->elem_list[fhe->idx];
+    }
+
+    return NULL;
+}
+
+// Destroy enumerator. Put 0 in magic number (so validity checks on handle will fail), free element list and handle pointer
+int fh_enum_destroy(fh_enum_t *fhe)
+{
+    FHE_CHECK(fhe);
+
+    fhe->magic = 0;
+    free(fhe->elem_list);
+    free(fhe);
+
+    return 1;
+}
+
 // takes index and slot as point of last scan and starting from there returns next entry (copies key and opaque)
-// if index and slot are not valida anymore return FH_ELEMENT_NOT_FOUND but continues
+// if index and slot are not valid anymore return FH_ELEMENT_NOT_FOUND but continues
 // don't use if datalen = 0 ... won't return opaque pointer
 int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int block_size)
 {
