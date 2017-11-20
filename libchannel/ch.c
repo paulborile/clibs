@@ -36,8 +36,7 @@
 /*  Local types                                 */
 
 #define CH_CHECK(f) if ((!f) || (f->magic != CH_MAGIC_ID)) return (CH_BAD_HANDLE);
-#define CH_CHECK_BLOCK(f,b) if ((!f) || (!b) || (f->magic != CH_MAGIC_ID)) return (CH_BAD_HANDLE);
-#define CH_CHECK_VOID(f,b) if ((!f) || (!b) || (f->magic != CH_MAGIC_ID)) return (NULL);
+#define CH_CHECK_BLOCK(f,b) if ((!f) || (!b) || (f->magic != CH_MAGIC_ID)) return (CH_WRONG_PARAM);
 
 static void _ch_lock(ch_h *ch)
 {
@@ -68,7 +67,7 @@ void *ch_create(ch_h *ch, int datalen)
     }
     else
     {
-        ch->allocated = 0
+        ch->allocated = 0;
     }
 
     ch->magic = CH_MAGIC_ID;
@@ -78,10 +77,10 @@ void *ch_create(ch_h *ch, int datalen)
     ch->head = NULL;
     ch->tail = NULL;
     ch->waiting_threads = 0;
-
     // ch->free_fun = free_fun;
 
     pthread_mutex_init(&(ch->ch_mutex), NULL);
+    pthread_cond_init(&(ch->ch_condvar),NULL);
     return ch;
 }
 
@@ -184,11 +183,11 @@ int ch_put_head(ch_h *ch, void *block)
 }
 
 // get from top of list - if CH_ATTR_BLOCKING_GET set block until element arrives.
-void *ch_get(ch_h *ch, void *block)
+int ch_get(ch_h *ch, void *block)
 {
     ch_elem_t *element = NULL;
 
-    CH_CHECK_VOID(ch, block);
+    CH_CHECK_BLOCK(ch, block);
 
     _ch_lock(ch);
 
@@ -203,7 +202,7 @@ void *ch_get(ch_h *ch, void *block)
         else
         {
             _ch_unlock(ch);
-            return NULL;
+            return CH_GET_NODATA;
         }
     }
 
@@ -216,7 +215,7 @@ void *ch_get(ch_h *ch, void *block)
             // fifo empty after pthread_cond_signal
             // some error condition to check
             _ch_unlock(ch);
-            return NULL;
+            return CH_GET_NODATA;
         }
     }
 
@@ -230,7 +229,7 @@ void *ch_get(ch_h *ch, void *block)
 
         ch->count--;
         _ch_unlock(ch);
-        return (block);
+        return CH_GET_ENDOFTRANSMISSION;
     }
 
     if (ch->datalen > 0)
@@ -261,22 +260,22 @@ void *ch_get(ch_h *ch, void *block)
 
     ch->count--;
     _ch_unlock(ch);
-    return (block);
+    return CH_OK;
 }
 
 // look at first without dequeing
-void *ch_peek(ch_h *ch, void *block)
+int ch_peek(ch_h *ch, void *block)
 {
     ch_elem_t *element = NULL;
 
-    CH_CHECK_VOID(ch, block);
+    CH_CHECK_BLOCK(ch, block);
 
     _ch_lock(ch);
 
     if (ch->count == 0)
     {
         _ch_unlock(ch);
-        return NULL;
+        return CH_GET_NODATA;
     }
 
     element = ch->head;
@@ -285,7 +284,7 @@ void *ch_peek(ch_h *ch, void *block)
         // special end of transmission signal
         ch->count--;
         _ch_unlock(ch);
-        return (block);
+        return CH_GET_ENDOFTRANSMISSION;
     }
 
     if (ch->datalen > 0)
@@ -302,7 +301,7 @@ void *ch_peek(ch_h *ch, void *block)
         strcpy(block, element->block);
     }
     _ch_unlock(ch);
-    return (block);
+    return CH_OK;
 }
 
 // set attributes
@@ -316,7 +315,7 @@ int ch_setattr(ch_h *ch, int attr, int val)
 
         if (val != CH_ATTR_NON_BLOCKING_GET && val != CH_ATTR_BLOCKING_GET)
         {
-            return (CH_WRONG_ATTR);
+            return (CH_WRONG_VALUE);
         }
 
         ch->attr &= val;
@@ -332,7 +331,7 @@ int ch_setattr(ch_h *ch, int attr, int val)
         return (CH_WRONG_ATTR);
     }
 
-    return (0);
+    return (CH_OK);
 }
 
 // get value for attributes and channel size
@@ -353,7 +352,7 @@ int ch_getattr(ch_h *ch, int attr, int *val)
     default:
         return (CH_WRONG_ATTR);
     }
-    return (0);
+    return (CH_OK);
 }
 
 // emtpy the channel without signalling ayone
@@ -417,6 +416,8 @@ int ch_destroy(ch_h *ch)
     }
 
     pthread_mutex_destroy(&(ch->ch_mutex));
+    pthread_cond_destroy(&(ch->ch_condvar));
+
     if (ch->allocated)
     {
         free(ch);

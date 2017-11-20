@@ -61,6 +61,9 @@ typedef struct _ch_h ch_h;
 #define CH_NO_MEMORY -2
 #define CH_WRONG_ATTR -3
 #define CH_WRONG_VALUE -4
+#define CH_WRONG_PARAM -5
+#define CH_GET_NODATA -6
+#define CH_GET_ENDOFTRANSMISSION -7
 
 // ch_create datalen types
 #define CH_DATALEN_STRING -1
@@ -80,8 +83,8 @@ typedef struct _ch_h ch_h;
 void *ch_create(ch_h *ch, int datalen);
 int ch_put(ch_h *ch, void *block);
 int ch_put_head(ch_h *ch, void *block);
-void *ch_get(ch_h *ch, void *block);
-void *ch_peek(ch_h *ch, void *block);
+int ch_get(ch_h *ch, void *block);
+int ch_peek(ch_h *ch, void *block);
 int ch_setattr(ch_h *ch, int attr, int val);
 int ch_getattr(ch_h *ch, int attr, int *val);
 int ch_clean(ch_h *ch);
