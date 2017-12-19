@@ -239,7 +239,8 @@ int ch_get(ch_h *ch, void *block)
     else if ( ch->datalen == CH_DATALEN_VOIDP )
     {
         //just copy poiters
-        block = element->block;
+        void **p = block;
+        *p = element->block;
     }
     else if ( ch->datalen == CH_DATALEN_STRING )
     {
@@ -254,8 +255,11 @@ int ch_get(ch_h *ch, void *block)
         ch->tail = NULL;
     }
 
-    free(element->block);
-    element->block = NULL;
+    if ( ch->datalen != CH_DATALEN_VOIDP)
+    {
+        free(element->block);
+        element->block = NULL;
+    }
     free(element);
 
     ch->count--;
