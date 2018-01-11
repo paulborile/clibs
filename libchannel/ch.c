@@ -373,11 +373,16 @@ int ch_clean(ch_h *ch)
         element = ch->head;
         cur_element = ch->head->prev;
 
+        // If channel transports pointers, element clean isn't needed
         while (element != NULL)
         {
-            free(element->block);
-            element->block = NULL;
+            if ( ch->datalen != CH_DATALEN_VOIDP && element->block != CH_ENDOFTRANSMISSION )
+            {
+                free(element->block);
+                element->block = NULL;
+            }
             free(element);
+            ch->count--;
 
             if (cur_element != NULL)
             {
@@ -392,8 +397,6 @@ int ch_clean(ch_h *ch)
             }
         }
     }
-
-    ch->count = 0;
 
     _ch_unlock(ch);
     return CH_OK;
