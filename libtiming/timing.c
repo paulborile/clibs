@@ -1,14 +1,17 @@
 /*
- * Paul Stephen Borile - (C) 2016
  * timing.c
  * timing related functioncs
  */
 
+// for clock_gettime() and c99
+
+#define _POSIX_C_SOURCE 199309L
+
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
 #include <assert.h>
 #include <getopt.h>
+#include <time.h>
 #include <sys/time.h>
 
 
@@ -37,13 +40,19 @@ void *timing_new_timer(int nanoprecision)
     return(t);
 }
 
+void timing_delete_timer(void *t)
+{
+    struct timing_data *tt = (struct timing_data *) t;
+    free(tt);
+}
+
 /*
  * timing_start : call at beginning of event to measure
  */
 
 // http://www.avrfreaks.net/forum/declaring-function-extern-inline-header-file
 // removing the "inline" (which generates a warning)
-void inline timing_start(void *t)
+inline void timing_start(void *t)
 {
     struct timing_data *tt = (struct timing_data *) t;
 
@@ -63,7 +72,7 @@ void inline timing_start(void *t)
  * timing_end : call at end of event to measure
  */
 
-double inline timing_end(void *t)
+inline double timing_end(void *t)
 {
     struct timing_data *tt = (struct timing_data *) t;
     double tstart, tend;
