@@ -24,6 +24,9 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// WARNING!!!! Needed to use strdup in this code. Without it, it's not defined
+#define _BSD_SOURCE
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>
@@ -40,11 +43,10 @@
         a->next = NULL;    \
         a->opaque_obj = NULL;   \
     }
-#define FH_ALLOPQOBJ(a,b)    a = (void *) malloc(b);
 
 #define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE);
 
-#define FH_KEY_CHECK(key) if (!key || strlen(key) == 0) return (FH_INVALID_KEY);
+#define FH_KEY_CHECK(key) if (!key || key[0] == '\0') return (FH_INVALID_KEY);
 
 #define FHE_CHECK(f) if ((!f) || (f->magic != FHE_MAGIC_ID)) return (FH_BAD_HANDLE);
 
@@ -52,7 +54,8 @@
  * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
  */
 
-static unsigned int fh_default_hash(const char *key, int dim) {
+static unsigned int fh_default_hash(const char *key, int dim)
+{
     register unsigned int hv = 0; // could put a seed here instead of zero
     register const unsigned char *s = (unsigned char *)key;
     while (*s) {
@@ -68,15 +71,17 @@ static unsigned int fh_default_hash(const char *key, int dim) {
 }
 
 /* makes sure the real size of the buckets array is a power of 2 */
-static unsigned int fh_hash_size(unsigned int s) {
+static unsigned int fh_hash_size(unsigned int s)
+{
     unsigned int i = 1;
     while (i < s) i <<= 1;
     return i;
 }
 
 // old hash function
-static unsigned int fh_default_hash_orig(const char *key, int dim)
-{
+/*
+   static unsigned int fh_default_hash_orig(const char *key, int dim)
+   {
     unsigned long h = 0, g;
     while (*key)
     {
@@ -87,17 +92,18 @@ static unsigned int fh_default_hash_orig(const char *key, int dim)
         h &= ~g;
     }
     return h % dim;
-}
+   }
+ */
 
 // Compare functions to sort enumerator
 int fh_ascfunc(const void *a, const void *b)
 {
-   return ( strcmp(((fh_elem_t *)a)->key, ((fh_elem_t *)b)->key) );
+    return ( strcmp(((fh_elem_t *)a)->key, ((fh_elem_t *)b)->key) );
 }
 
 int fh_descfunc(const void *a, const void *b)
 {
-   return ( strcmp(((fh_elem_t *)b)->key, ((fh_elem_t *)a)->key) );
+    return ( strcmp(((fh_elem_t *)b)->key, ((fh_elem_t *)a)->key) );
 }
 
 // create hashtable object and init all data
@@ -152,8 +158,38 @@ fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
         f->hash_function = fh_default_hash;
     }
 
+    // compute pool size (function of hashtable size), save size in fh object, allocate lock pool, init locks
+    if(dim > SIZE_LIMIT_SINGLE_MUTEX)
+    {
+        // Compute mutex number: it's base 2 logarythm of hashtable dimension
+        int num = dim;
+        int size = 0;
+
+        while(num > 0)
+        {
+            int half = num >> 1;
+            size++;
+            num = half;
+        }
+
+        f->n_lock = size;
+    }
+    else
+    {
+        // small hashtable, create only one mutex
+        f->n_lock = 1;
+    }
+
+    f->h_lock = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t) * f->n_lock);
+    if(f->h_lock == NULL)
+    {
+        free(hash);
+        free(f);
+        return NULL;
+    }
+
     // init hastable critical region mutexes
-    for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
+    for (int i = 0; i < f->n_lock; i++)
     {
         pthread_mutex_init(&(f->h_lock[i]), NULL);
     }
@@ -165,12 +201,12 @@ fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
 
 static void _fh_lock(fh_t *fh, int slot)
 {
-    pthread_mutex_lock(&(fh->h_lock[slot % FH_MAX_CONCURRENT_OPERATIONS]));
+    pthread_mutex_lock(&(fh->h_lock[slot % fh->n_lock]));
 }
 
 static void _fh_unlock(fh_t *fh, int slot)
 {
-    pthread_mutex_unlock(&(fh->h_lock[slot % FH_MAX_CONCURRENT_OPERATIONS]));
+    pthread_mutex_unlock(&(fh->h_lock[slot % fh->n_lock]));
 }
 
 static void _fh_lock_fh(fh_t *fh)
@@ -183,37 +219,38 @@ static void _fh_unlock_fh(fh_t *fh)
     pthread_mutex_unlock(&(fh->fh_lock));
 }
 
-static void _fh_lock_all(fh_t *fh)
-{
-    for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
-    {
-        pthread_mutex_lock(&(fh->h_lock[i]));
-    }
-}
+//static void _fh_lock_all(fh_t *fh)
+//{
+//    for (int i = 0; i < fh->n_lock; i++)
+//    {
+//        pthread_mutex_lock(&(fh->h_lock[i]));
+//    }
+//}
 
-static void _fh_unlock_all(fh_t *fh)
-{
-    for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
-    {
-        pthread_mutex_unlock(&(fh->h_lock[i]));
-    }
-}
+//static void _fh_unlock_all(fh_t *fh)
+//{
+//    for (int i = 0; i < fh->n_lock; i++)
+//    {
+//        pthread_mutex_unlock(&(fh->h_lock[i]));
+//    }
+//}
 
 // set attributes in object
 int fh_setattr(fh_t *fh, int attr, int value)
 {
+    (void) value;
     FH_CHECK(fh);
 
     switch(attr)
     {
     case FH_SETATTR_DONTCOPYKEY:
-        fh->h_attr &= FH_SETATTR_DONTCOPYKEY;
+        fh->h_attr |= FH_SETATTR_DONTCOPYKEY;
         break;
     default:
         return(FH_BAD_ATTR);
     }
 
-    return (1);
+    return (FH_OK);
 }
 
 // get attributes in object
@@ -235,60 +272,81 @@ int fh_getattr(fh_t *fh, int attr, int *value)
     default:
         return(FH_BAD_ATTR);
     }
-    return (1);
+    return (FH_OK);
 }
 
-/*
- * deallocates all data and destroys 'da hash
- */
+// Clean all elements in hash table, leaving the table empty
+int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func))
+{
+    FH_CHECK(fh);
+    int result = FH_OK;
 
+    // User set del_func but hash table doesn't contain void pointers: set error to return (but still clean the table)
+    if(del_func != NULL && fh->h_datalen != FH_DATALEN_VOIDP)
+    {
+        result = FH_FREE_NOT_REQUESTED;
+    }
+
+    fh_enum_t *fhe = fh_enum_create(fh, 0, &result);
+
+    // If enumerator is NULL something goes wrong. Return error to caller.
+    if(fhe == NULL)
+    {
+        return result;
+    }
+
+    while ( fh_enum_is_valid(fhe) )
+    {
+        fh_elem_t *element = fh_enum_get_value(fhe, &result);
+
+        // free opaque object only if was allocated
+        if (fh->h_datalen == FH_DATALEN_VOIDP)
+        {
+            // If delete object function is passed, use it to delete opaque. Otherwise do nothing
+            if(del_func != NULL)
+            {
+                del_func(element->opaque_obj);
+            }
+        }
+
+        fh_del(fh, element->key);
+
+        // Move to next element
+        fh_enum_move_next(fhe);
+    }
+
+    // Destroy the enum
+    fh_enum_destroy(fhe);
+
+    return(result);
+}
+
+// deallocates all data (using fh_clean) and destroys 'da hash
 int fh_destroy(fh_t *fh)
 {
-    int i;
-    register fh_slot *h_slot = NULL, *h_slot_current = NULL;
     FH_CHECK(fh);
-    f_hash *f_h = (f_hash *) fh->hash_table;
 
-    _fh_lock_all(fh);
-    fh->h_magic = 0;
+    fh_clean(fh, NULL);
     // remove all entries
-    for (i = 0; i < fh->h_dim; i++)
-    {
-        h_slot = f_h[i].h_slot;
-        while (h_slot != NULL)
-        {
-            h_slot_current = h_slot;
-            h_slot = h_slot->next;
-
-            // free opaque object only if was allocated
-            if ((h_slot_current->opaque_obj) && (fh->h_datalen != FH_DATALEN_VOIDP))
-            {
-                free(h_slot_current->opaque_obj);
-            }
-            if ( (fh->h_attr & FH_SETATTR_DONTCOPYKEY) == 0 )
-            {
-                // we copy key so we have to free them
-                free(h_slot_current->key);
-            }
-            free(h_slot_current);
-        }
-    }
 
     // dealloco hash table
     free(fh->hash_table);
-    _fh_unlock_all(fh);
 
-    for (int i=0; i<FH_MAX_CONCURRENT_OPERATIONS; i++)
+    // free every single mutex
+    for (int i = 0; i < fh->n_lock; i++)
     {
         pthread_mutex_destroy(&fh->h_lock[i]);
     }
+
+    // Free mutex pool
+    free(fh->h_lock);
 
     pthread_mutex_destroy(&fh->fh_lock);
 
     // dealloco struct hash info
     free(fh);
 
-    return (1);
+    return (FH_OK);
 }
 
 // insert : copies both key and opaque data. If slot already used
@@ -296,7 +354,7 @@ int fh_destroy(fh_t *fh)
 int fh_insert(fh_t *fh, char *key, void *block)
 {
     int i;
-    register fh_slot *h_slot, *new_h_slot;
+    fh_slot *h_slot, *new_h_slot = NULL;
     void *new_opaque_obj = NULL;
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
@@ -329,8 +387,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
     }
 
     // new slot to add
-    FH_ALLHSLOT(new_h_slot);
-
+    new_h_slot = calloc(1, sizeof(fh_slot));
     if (new_h_slot == NULL)
     {
         _fh_unlock(fh, i);
@@ -344,17 +401,13 @@ int fh_insert(fh_t *fh, char *key, void *block)
     }
     else
     {
-
-        int key_len = strlen(key);
-        new_h_slot->key = (char *) malloc(key_len + 1);
+        new_h_slot->key = strdup(key);
         if (new_h_slot->key == NULL)
         {
             free(new_h_slot);
             _fh_unlock(fh, i);
             return (FH_NO_MEMORY);
         }
-
-        strcpy(new_h_slot->key, key);
     }
 
     // allocate and copy opaque object
@@ -364,7 +417,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
         // datalen contains a positive value = fixed size opaque_obj
         if ( fh->h_datalen > 0 )
         {
-            FH_ALLOPQOBJ(new_opaque_obj, fh->h_datalen);
+            new_opaque_obj = malloc(fh->h_datalen);
             if (new_opaque_obj == NULL)
             {
                 _fh_unlock(fh, i);
@@ -378,14 +431,12 @@ int fh_insert(fh_t *fh, char *key, void *block)
         }
         else if ( fh->h_datalen == FH_DATALEN_STRING ) // datalen = -1 => opaque is string
         {
-            int len = strlen(block);
-            FH_ALLOPQOBJ(new_opaque_obj, len + 1);
+            new_opaque_obj = strdup(block);
             if (new_opaque_obj == NULL)
             {
                 _fh_unlock(fh, i);
                 return (FH_NO_MEMORY);
             }
-            strcpy(new_opaque_obj, block);
         }
 
         new_h_slot->opaque_obj = new_opaque_obj;
@@ -447,7 +498,7 @@ int fh_del(fh_t *fh, char *key)
         fh->hash_table[i].h_slot = h_slot->next;
     }
 
-    // cleanup only for fixed size of string opaque object
+    // cleanup only for fixed size or string opaque object
     if ((h_slot->opaque_obj) && (fh->h_datalen != FH_DATALEN_VOIDP))
     {
         free(h_slot->opaque_obj);
@@ -478,7 +529,8 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     register fh_slot *h_slot;
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
-    if(!block) return(FH_BUFFER_NULL);
+    if(!block)
+        return(FH_BUFFER_NULL);
 
     if ( fh->h_datalen == FH_DATALEN_VOIDP )
     {
@@ -537,7 +589,7 @@ void *fh_get(fh_t *fh, char *key, int *error)
         return NULL;
     }
 
-    if(!key || strlen(key) == 0)
+    if(!key || key[0] == '\0')
     {
         *error = FH_INVALID_KEY;
         return NULL;
@@ -567,6 +619,7 @@ void *fh_get(fh_t *fh, char *key, int *error)
     }
     opaque = h_slot->opaque_obj;
     _fh_unlock(fh, i);
+    *error = FH_OK;
     return (opaque);
 }
 
@@ -584,7 +637,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
         return NULL;
     }
 
-    if(!key || strlen(key) == 0)
+    if(!key || key[0] == '\0')
     {
         *error = FH_INVALID_KEY;
         return NULL;
@@ -609,19 +662,16 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
         return (NULL);
     }
     (*slot) = i;
+    *error = FH_OK;
     return (h_slot->opaque_obj);
 }
 
 // release a lock left from fh_searchlock
-void fh_releaselock(fh_t *fh, int slot, int *error)
+int fh_releaselock(fh_t *fh, int slot)
 {
-    if(!fh || fh->h_magic != FH_MAGIC_ID)
-    {
-        *error = FH_BAD_HANDLE;
-        return;
-    }
-
+    FH_CHECK(fh);
     _fh_unlock(fh, slot);
+    return FH_OK;
 }
 
 
@@ -657,6 +707,13 @@ fh_enum_t *fh_enum_create(fh_t *fh, int sort_order, int *error)
     if(!fh || fh->h_magic != FH_MAGIC_ID)
     {
         *error = FH_BAD_HANDLE;
+        return NULL;
+    }
+
+    // Hashtable empty: don't create enumerator, it's useless
+    if(fh->h_elements < 1)
+    {
+        *error = FH_EMPTY_HASHTABLE;
         return NULL;
     }
 
@@ -723,7 +780,7 @@ int fh_enum_move_next(fh_enum_t *fhe)
         fhe->is_valid = 0;
     }
 
-    return 1;
+    return FH_OK;
 }
 
 // Get current element in the list.
@@ -752,7 +809,7 @@ int fh_enum_destroy(fh_enum_t *fhe)
     free(fhe->elem_list);
     free(fhe);
 
-    return 1;
+    return FH_OK;
 }
 
 // takes index and slot as point of last scan and starting from there returns next entry (copies key and opaque)
@@ -843,6 +900,6 @@ int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int 
     }
     else
     {
-        return (1);
+        return (FH_OK);
     }
 }
