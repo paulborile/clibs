@@ -42,6 +42,9 @@ struct _lru_payload_t {
 };
 typedef struct _lru_payload_t lru_payload_t;
 
+#define LRU_CHECK(l) if ((!l) || (l->magic != LRU_MAGIC_ID)) return (LRU_BAD_HANDLE)
+
+
 // lru_create : create lru object
 // lru is basically an hashtable with a maximum number of elements that can be added. When the lru is full,
 // the least recently used entry is removed to make space for the new one.
@@ -93,6 +96,8 @@ int     lru_add(lru_t *lru, char *key, void *payload)
     int fh_err;
     void *slot, *slot_to_free;
     lru_payload_t *new;
+
+    LRU_CHECK(lru);
 
     // ll_slot_new returns NULL on lru full, need to remove an entry and free it and try again
     while (( slot = ll_slot_new(lru->ll, (void *)&new)) == NULL )
@@ -161,8 +166,10 @@ int     lru_check(lru_t *lru, char *key, void **payload)
     int fhslot;
     int fherr;
 
-    //pload = (lru_payload_t *) fh_searchlock(lru->fh, key, &fhslot);
-    pload = (lru_payload_t *) fh_get(lru->fh, key, &fherr);
+    LRU_CHECK(lru);
+
+    pload = (lru_payload_t *) fh_searchlock(lru->fh, key, &fhslot, &fherr);
+    // pload = (lru_payload_t *) fh_get(lru->fh, key, &fherr);
 
     if ( pload == NULL )
     {
@@ -175,7 +182,7 @@ int     lru_check(lru_t *lru, char *key, void **payload)
 
     ll_slot_move_to_top(lru->ll, pload->ll_slot);
 
-    //fh_releaselock(lru->fh, fhslot);
+    fh_releaselock(lru->fh, fhslot);
 
     return(LRU_OK);
 }
@@ -186,6 +193,8 @@ int   lru_clear(lru_t *lru)
     lru_payload_t *hashpayload;
     int fh_err;
     ll_slot_t *removed;
+
+    LRU_CHECK(lru);
 
     while (( removed = ll_remove_last(lru->ll, (void *)&hashpayload)) != NULL )
     {
@@ -207,9 +216,11 @@ int   lru_clear(lru_t *lru)
     return LRU_OK;
 }
 
-
+// destroy the object
 int     lru_destroy(lru_t *lru)
 {
+    LRU_CHECK(lru);
+
     lru_clear(lru);
     ll_destroy(lru->ll);
     fh_destroy(lru->fh);
@@ -227,6 +238,7 @@ static int print_payload(void *v)
 
 int lru_print(lru_t *lru)
 {
+    LRU_CHECK(lru);
     ll_print(lru->ll, print_payload);
     return 0;
 }
@@ -234,6 +246,7 @@ int lru_print(lru_t *lru)
 int lru_get_ll_data(lru_t *lru, int idx, char** key, void** payload, void** ll_slot)
 {
     void* voidp = NULL;
+    LRU_CHECK(lru);
 
     int ll_err = ll_get_payload(lru->ll, idx, &voidp);
     if(ll_err != LL_OK)
@@ -251,6 +264,7 @@ int lru_get_ll_data(lru_t *lru, int idx, char** key, void** payload, void** ll_s
 int   lru_get_ll_key_position(lru_t *lru, const char* key)
 {
     void* voidp = NULL;
+    LRU_CHECK(lru);
 
     int idx = 0;
     while(ll_get_payload(lru->ll, idx, &voidp) == LL_OK)

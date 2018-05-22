@@ -24,6 +24,7 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #define _XOPEN_SOURCE 700
 #define LL_SLOT_IN_FREELIST 0xFE
 #define LL_SLOT_DANGLING 0xFD // not in ll list nor in freelist
@@ -107,6 +108,7 @@ static void ll_print_slot(ll_t *ll, ll_slot_t *slot)
 static void _ll_lock(ll_t *ll)
 {
     int ret = pthread_mutex_lock(&(ll->lock));
+    (void) ret;
 #ifdef MUTEX_CHECKS
     if (ret != 0)
     {
@@ -119,6 +121,7 @@ static void _ll_lock(ll_t *ll)
 static void _ll_unlock(ll_t *ll)
 {
     int ret = pthread_mutex_unlock(&(ll->lock));
+    (void) ret;
 #ifdef MUTEX_CHECKS
     if (ret != 0)
     {
@@ -131,7 +134,8 @@ static void _ll_unlock(ll_t *ll)
 // ll_slot_new : alloc a slot i.e. get it from freelis of preallocated slots
 ll_slot_t *ll_slot_new(ll_t *ll, void **payload) // gets a slot from the freelist
 {
-    if ( ll == NULL ) return NULL;
+    if ( ll == NULL )
+        return NULL;
 
     _ll_lock(ll);
 
@@ -158,7 +162,8 @@ ll_slot_t *ll_slot_new(ll_t *ll, void **payload) // gets a slot from the freelis
 
 void ll_slot_free(ll_t *ll, ll_slot_t *slot) // puts slot back in freelist
 {
-    if ( ll == NULL ) return;
+    if ( ll == NULL )
+        return;
 
     _ll_lock(ll);
     ll_slot_t *oldfirst = ll->freelist;
@@ -168,19 +173,6 @@ void ll_slot_free(ll_t *ll, ll_slot_t *slot) // puts slot back in freelist
     _ll_unlock(ll);
 
 }
-
-// _ll_slot_free : free a slot i.e. put it back in freelist no locks
-
-static void _ll_slot_free(ll_t *ll, ll_slot_t *slot) // puts slot back in freelist
-{
-    if ( ll == NULL ) return;
-
-    ll_slot_t *oldfirst = ll->freelist;
-    ll->freelist = slot;
-    slot->next = oldfirst;
-    slot->status = LL_SLOT_IN_FREELIST;
-}
-
 
 // removes last ll_slot, returns payload
 ll_slot_t *ll_remove_last(ll_t *ll, void **payload)
@@ -270,7 +262,7 @@ void ll_slot_add_to_top(ll_t *ll, ll_slot_t *slot)
         return;
     }
 #endif
-	
+
     // clear DANGLING state
     slot->status = 0;
 
@@ -410,9 +402,6 @@ void ll_slot_move_to_top(ll_t *ll, ll_slot_t *slot)
 // destroy object, using original calloc saved pointer
 int ll_destroy(ll_t *ll)
 {
-    void *payload;
-    ll_slot_t *removed;
-
     if (ll == NULL)
     {
         return LL_BAD_LL;
@@ -494,6 +483,7 @@ void ll_print(ll_t *ll, int (*payload_print)(void *))
         printf("[%p] : payload : ",l); payload_print(l->payload);
         l = l->next;
         i++;
-        if (i>50) break;
+        if (i>50)
+            break;
     }
 }
