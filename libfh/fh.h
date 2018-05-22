@@ -24,7 +24,6 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #ifndef FH_H
 #define FH_H
 
@@ -36,29 +35,30 @@ extern "C" {
 #define FH_MAGIC_ID         0xCACCA
 #define FHE_MAGIC_ID        0xBACCA
 
-#define FH_OK           1   // No error
-#define FH_BAD_HANDLE   -1  // handle null of not pointing to ft_h
-#define FH_INVALID_KEY  -1000 // NULL key
+#define FH_OK               1   // No error
+#define FH_BAD_HANDLE       -1  // handle null of not pointing to ft_h
+#define FH_INVALID_KEY      -1000 // NULL key
 #define FH_ELEMENT_NOT_FOUND    -2000 // hash element not found
 #define FH_DUPLICATED_ELEMENT   -3000 // duplicated key
-#define FH_NO_MEMORY    -4000 // malloc/calloc fails
-#define FH_BUFFER_NULL    -5000 // buffer passed null (fh_search)
+#define FH_NO_MEMORY        -4000 // malloc/calloc fails
+#define FH_BUFFER_NULL      -5000 // buffer passed null (fh_search)
 #define FH_WRONG_DATALEN    -6000 // wrong datalen for fh_search, use fh_get
-#define FH_DIM_INVALID  -7000 // bad dimension
-#define FH_BAD_ATTR     -9000 // bad attribute to get/setattr
+#define FH_DIM_INVALID      -7000 // bad dimension
+#define FH_BAD_ATTR         -9000 // bad attribute to get/setattr
 #define FH_FREE_NOT_REQUESTED   -1500 // free function passed to fh_clean but datalen value is not FH_DATALEN_VOIDP
-#define FH_EMPTY_HASHTABLE   -2500 // Call fh_enum_create on an empty fh
-#define FH_SCAN_END     -100 // fh_scan_next hash reached end of hash
+#define FH_EMPTY_HASHTABLE  -2500 // Call fh_enum_create on an empty fh
+#define FH_ERROR_OPERATION_NOT_PERMITTED    -3500 // invalid operation
+#define FH_SCAN_END         -100 // fh_scan_next hash reached end of hash
 
-#define FH_ATTR_ELEMENT  100 // getattr elements in hash
-#define FH_ATTR_DIM 101 // getattr real dim of hashtable
+#define FH_ATTR_ELEMENT     100 // getattr elements in hash
+#define FH_ATTR_DIM         101 // getattr real dim of hashtable
 #define FH_ATTR_COLLISION   102 // getattr collisions in insert
 // attributes to set
 #define FH_SETATTR_DONTCOPYKEY  1 // for setattr : do not allocate and copy key
 
 // datalen values
 #define FH_DATALEN_STRING   -1
-#define FH_DATALEN_VOIDP        0
+#define FH_DATALEN_VOIDP    0
 
 // Sort order of enumerator
 #define FH_ENUM_SORTED_ASC  1
@@ -102,22 +102,22 @@ struct _fh_t {
 typedef struct _fh_t fh_t;
 
 // create fh : opaque_len = -1 means opaque is string (0 terminted)
-fh_t    *fh_create( int dim, int opaque_len, unsigned int (*hash_function)());
-int     fh_setattr(fh_t *fh, int attr, int value);
-int     fh_getattr(fh_t *fh, int attr, int *value);
-int     fh_destroy(fh_t *fh );
+fh_t *fh_create( int dim, int opaque_len, unsigned int (*hash_function)());
+int fh_setattr(fh_t *fh, int attr, int value);
+int fh_getattr(fh_t *fh, int attr, int *value);
+int fh_destroy(fh_t *fh );
 // inserts opaque pointed data allocating/copying it inside hastable
-int     fh_insert(fh_t *fh, char *key, void *opaque);
+int fh_insert(fh_t *fh, char *key, void *opaque);
 // remove entry, free data
-int     fh_del(fh_t *fh, char *key );
+int fh_del(fh_t *fh, char *key );
 // search and copy out data
-int     fh_search(fh_t *fh, char *key, void *opaque, int opaque_size);
+int fh_search(fh_t *fh, char *key, void *opaque, int opaque_size);
 // search and return pointer to internal allocated data
 void *fh_get(fh_t *fh, char *key, int *error);
 
-int     fh_scan_start(fh_t *fh, int pos, void **slot);
+int fh_scan_start(fh_t *fh, int pos, void **slot);
 // scans and copies out data
-int     fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque, int opaque_size);
+int fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque, int opaque_size);
 // experimental
 void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error);
 int fh_releaselock(fh_t *fh, int slot);
@@ -146,7 +146,8 @@ fh_elem_t *fh_enum_get_value(fh_enum_t *fhe, int *error);
 // fh_elem_t **fh_enum_get_all_values(fh_enum_t *fhe);
 int fh_enum_destroy(fh_enum_t *fhe);
 
-typedef int fh_opaque_delete_func (void *);
+// typedef defining generic free function parameter in clean method
+typedef void fh_opaque_delete_func (void *);
 
 // Clean hashtable
 int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func));

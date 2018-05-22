@@ -36,19 +36,9 @@
 
 #include    "fh.h"
 
-#define FH_ALLHSLOT(a)   a = (fh_slot *)malloc( sizeof( fh_slot ) ); \
-    if(a != NULL) \
-    {  \
-        a->key = NULL;    \
-        a->next = NULL;    \
-        a->opaque_obj = NULL;   \
-    }
-
-#define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE);
-
-#define FH_KEY_CHECK(key) if (!key || key[0] == '\0') return (FH_INVALID_KEY);
-
-#define FHE_CHECK(f) if ((!f) || (f->magic != FHE_MAGIC_ID)) return (FH_BAD_HANDLE);
+#define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE)
+#define FH_KEY_CHECK(key) if (!key) return (FH_INVALID_KEY)
+#define FHE_CHECK(f) if ((!f) || (f->magic != FHE_MAGIC_ID)) return (FH_BAD_HANDLE)
 
 /*
  * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
@@ -244,6 +234,10 @@ int fh_setattr(fh_t *fh, int attr, int value)
     switch(attr)
     {
     case FH_SETATTR_DONTCOPYKEY:
+        if(fh->h_elements > 0)
+        {
+            return FH_ERROR_OPERATION_NOT_PERMITTED;
+        }
         fh->h_attr |= FH_SETATTR_DONTCOPYKEY;
         break;
     default:
@@ -284,7 +278,7 @@ int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func))
     // User set del_func but hash table doesn't contain void pointers: set error to return (but still clean the table)
     if(del_func != NULL && fh->h_datalen != FH_DATALEN_VOIDP)
     {
-        result = FH_FREE_NOT_REQUESTED;
+        return FH_FREE_NOT_REQUESTED;
     }
 
     fh_enum_t *fhe = fh_enum_create(fh, 0, &result);
@@ -299,6 +293,8 @@ int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func))
     {
         fh_elem_t *element = fh_enum_get_value(fhe, &result);
 
+        fh_del(fh, element->key);
+
         // free opaque object only if was allocated
         if (fh->h_datalen == FH_DATALEN_VOIDP)
         {
@@ -308,8 +304,6 @@ int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func))
                 del_func(element->opaque_obj);
             }
         }
-
-        fh_del(fh, element->key);
 
         // Move to next element
         fh_enum_move_next(fhe);
@@ -589,7 +583,7 @@ void *fh_get(fh_t *fh, char *key, int *error)
         return NULL;
     }
 
-    if(!key || key[0] == '\0')
+    if(!key)
     {
         *error = FH_INVALID_KEY;
         return NULL;
@@ -637,7 +631,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
         return NULL;
     }
 
-    if(!key || key[0] == '\0')
+    if(!key)
     {
         *error = FH_INVALID_KEY;
         return NULL;
