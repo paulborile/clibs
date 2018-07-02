@@ -82,6 +82,7 @@ struct _f_hash {
     fh_slot *h_slot;
 };
 typedef struct _f_hash f_hash;
+typedef unsigned int (*fh_hash_fun)(char *key, int dim);
 
 // fh object
 struct _fh_t {
@@ -92,7 +93,7 @@ struct _fh_t {
     int h_elements;  // elements in hash
     int h_collision;  // collisions during insert
     int h_attr;  // holding attributes
-    unsigned int (*hash_function)();
+    fh_hash_fun hash_function;
     // pthread_mutex_t	h_lock[FH_MAX_CONCURRENT_OPERATIONS];
     // Dynamically allocated mutex pool and its current size
     pthread_mutex_t *h_lock;
@@ -101,8 +102,9 @@ struct _fh_t {
 };
 typedef struct _fh_t fh_t;
 
+
 // create fh : opaque_len = -1 means opaque is string (0 terminted)
-fh_t *fh_create( int dim, int opaque_len, unsigned int (*hash_function)());
+fh_t *fh_create( int dim, int opaque_len, fh_hash_fun custom_hash);
 int fh_setattr(fh_t *fh, int attr, int value);
 int fh_getattr(fh_t *fh, int attr, int *value);
 int fh_destroy(fh_t *fh );
@@ -110,6 +112,8 @@ int fh_destroy(fh_t *fh );
 int fh_insert(fh_t *fh, char *key, void *opaque);
 // remove entry, free data
 int fh_del(fh_t *fh, char *key );
+// fh_dellocked - remove item from locked hash slot
+int fh_dellocked(fh_t *fh, char *key, int locked_slot);
 // search and copy out data
 int fh_search(fh_t *fh, char *key, void *opaque, int opaque_size);
 // search and return pointer to internal allocated data
@@ -151,6 +155,12 @@ typedef void fh_opaque_delete_func (void *);
 
 // Clean hashtable
 int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func));
+
+// some hash functions provided
+// jsw_hash behaves good with strings
+unsigned int jsw_hash(char *, int);
+// low collisions
+unsigned int jen_hash(char *, int);
 
 #ifdef __cplusplus
 }

@@ -44,7 +44,7 @@
  * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
  */
 
-static unsigned int fh_default_hash(const char *key, int dim)
+unsigned int fh_default_hash(char *key, int dim)
 {
     register unsigned int hv = 0; // could put a seed here instead of zero
     register const unsigned char *s = (unsigned char *)key;
@@ -60,30 +60,15 @@ static unsigned int fh_default_hash(const char *key, int dim)
     return hv & (dim - 1);
 }
 
-/* makes sure the real size of the buckets array is a power of 2 */
+// makes sure the real size of the buckets array is a power of 2
+// adds 1.5 size factor to allow for enough space to limit collisions
 static unsigned int fh_hash_size(unsigned int s)
 {
     unsigned int i = 1;
+    s = s + s/2; // add 50%
     while (i < s) i <<= 1;
     return i;
 }
-
-// old hash function
-/*
-   static unsigned int fh_default_hash_orig(const char *key, int dim)
-   {
-    unsigned long h = 0, g;
-    while (*key)
-    {
-        h = (h << 4) + *key++;
-        g = (h & 0xF0000000);
-        if (g)
-            h ^= g >> 24;
-        h &= ~g;
-    }
-    return h % dim;
-   }
- */
 
 // Compare functions to sort enumerator
 int fh_ascfunc(const void *a, const void *b)
@@ -103,7 +88,7 @@ int fh_descfunc(const void *a, const void *b)
 // and copied with memcpy
 // datalen = 0 : opaque is threated as a void pointer, no allocation is done, pointer value is kept in hashtable opa	que data.
 
-fh_t *fh_create(int dim, int datalen, unsigned int (*hash_function)())
+fh_t *fh_create(int dim, int datalen, fh_hash_fun hash_function)
 {
     fh_t *f = NULL;
     f_hash *hash = NULL;
@@ -255,7 +240,9 @@ int fh_getattr(fh_t *fh, int attr, int *value)
     switch(attr)
     {
     case FH_ATTR_ELEMENT:
+        _fh_lock_fh(fh);
         (*value) = fh->h_elements;
+        _fh_unlock_fh(fh);
         break;
     case FH_ATTR_DIM:
         (*value) = fh->h_dim;
@@ -381,12 +368,14 @@ int fh_insert(fh_t *fh, char *key, void *block)
     }
 
     // new slot to add
-    new_h_slot = calloc(1, sizeof(fh_slot));
+    new_h_slot = malloc(sizeof(fh_slot));
     if (new_h_slot == NULL)
     {
         _fh_unlock(fh, i);
         return (FH_NO_MEMORY);
     }
+
+    new_h_slot->opaque_obj = NULL;
 
     // allocate and copy key
     if ( fh->h_attr & FH_SETATTR_DONTCOPYKEY )
@@ -450,11 +439,12 @@ int fh_insert(fh_t *fh, char *key, void *block)
     return (i);
 }
 
+static int _fh_del(fh_t *fh, char *key, int i);
+
 // fh_del - remove item from hash and free memory
 int fh_del(fh_t *fh, char *key)
 {
     int i;
-    register fh_slot *h_slot, *prev_h_slot = NULL;
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
 
@@ -462,6 +452,43 @@ int fh_del(fh_t *fh, char *key)
 
     i = fh->hash_function(key, fh->h_dim);
     _fh_lock(fh, i);
+    int rc = _fh_del(fh, key, i);
+    _fh_unlock(fh, i);
+
+    if(rc != FH_ELEMENT_NOT_FOUND)
+    {
+        _fh_lock_fh(fh);
+        (fh->h_elements)--;
+        _fh_unlock_fh(fh);
+    }
+
+    return (rc);
+}
+
+// fh_dellocked - remove item from locked hash slot
+int fh_dellocked(fh_t *fh, char *key, int locked_slot)
+{
+    FH_CHECK(fh);
+    FH_KEY_CHECK(key);
+
+    int rc = _fh_del(fh, key, locked_slot);
+
+    if(rc != FH_ELEMENT_NOT_FOUND)
+    {
+        _fh_lock_fh(fh);
+        (fh->h_elements)--;
+        _fh_unlock_fh(fh);
+    }
+
+    return (rc);
+}
+
+
+// internal fh_del which dels with no locks starting on a slot.
+// to be used by both fh_del() and fh_dellock()
+static int _fh_del(fh_t *fh, char *key, int i)
+{
+    register fh_slot *h_slot, *prev_h_slot = NULL;
 
     assert(i<fh->h_dim);
 
@@ -477,7 +504,6 @@ int fh_del(fh_t *fh, char *key)
 
     if ( h_slot == NULL )
     {
-        _fh_unlock(fh, i);
         return (FH_ELEMENT_NOT_FOUND);
     }
 
@@ -506,13 +532,7 @@ int fh_del(fh_t *fh, char *key)
     free(h_slot);
     h_slot = NULL;
 
-    _fh_unlock(fh, i);
-
-    _fh_lock_fh(fh);
-    (fh->h_elements)--;
-    _fh_unlock_fh(fh);
-
-    return (i);
+    return(i);
 }
 
 // serch key and copy out opaque data
