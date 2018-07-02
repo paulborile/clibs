@@ -1,6 +1,8 @@
 /*
- * timing.c
- * timing related functioncs
+   Copyright (c) 2017, Paul Stephen Borile
+   All rights reserved.
+   License : MIT
+
  */
 
 // for clock_gettime() and c99
