@@ -1,31 +1,21 @@
-OBJ = fh.o
+# LIB = library name
+# SRC = list of source files the library is made of.
+# RELEASE_CFLAGS = list of private Compiler flags for release build
+# DEBUG_CFLAGS = list of private Compiler flags for debug build
+# Available productions :
+#
+# release{linux,macosx,windows} : makes release version of the library
+# releaseclean
+# debug{linux,macosx,windows} : make debug version of the library with sanitize enabled
+# debugclean
+# coveragelinux : make coverage versione of library (lib<suffiz>-coverage.a)
+# coverageclean
 
-CFLAGS = -O3 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment -pthread
-# CFLAGS = -g -O0 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment
+# library suffix
+LIB = fh
+SRC = fh.c
+# any personal cflag needed by the library code
+RELEASE_CFLAGS =
+DEBUG_CFLAGS =
 
-lib: $(OBJ)
-
-#	$(CC) -fPIC -Wl,-undefined -Wl,dynamic_lookup -shared -o libfh.so $(OBJ) 
-	ar csr libfh.a $(OBJ)
-
-macosx-lib: $(OBJ)
-	$(CC) -fPIC -Wl,-undefined -Wl,dynamic_lookup -shared -o libfh.so $(OBJ)
-	$(CXX) -dynamiclib -undefined suppress -flat_namespace $(OBJ) -o libufa.dylib
-
-clean:
-	rm -rf $(OBJ) libfh.so* libfh.a
-
-#some Windows / MINGW stuff
-win-lib: $(OBJ)
-	$(CC) -o fh.dll $(OBJ) -shared -Wl,--subsystem,windows,--out-implib,fh.lib
-
-win-clean:
-
-	rm -rf *.o
-	rm -rf *.a
-	rm -rf *.lib
-	rm -rf *.dll
-	rm -rf .\test\*.o
-	rm -rf *.so
-	rm -rf *.exe
-
+include	../makefiles/included_for_lib.mk
