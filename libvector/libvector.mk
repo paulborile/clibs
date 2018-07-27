@@ -1,33 +1,21 @@
-OBJ = v.o
+# LIB = library name
+# SRC = list of source files the library is made of.
+# RELEASE_CFLAGS = list of private Compiler flags for release build
+# DEBUG_CFLAGS = list of private Compiler flags for debug build
+# Available productions :
+#
+# release{linux,macosx,windows} : makes release version of the library
+# releaseclean
+# debug{linux,macosx,windows} : make debug version of the library with sanitize enabled
+# debugclean
+# coveragelinux : make coverage versione of library (lib<suffiz>-coverage.a)
+# coverageclean
 
-CFLAGS = -O3 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment -pthread
-# CFLAGS = -g -O0 -fPIC --std=c99 -Wall -Wextra -Wno-unused -I . -Wcomment  -Wcomment -pthread
+# library suffix
+LIB = vector
+SRC = vector.c
+# any personal cflag needed by the library code
+RELEASE_CFLAGS =
+DEBUG_CFLAGS =
 
-lib: $(OBJ)
-
-#	$(CC) -fPIC -Wl,-undefined -Wl,dynamic_lookup -shared -o libv.so $(OBJ)
-	ar csr libv.a $(OBJ)
-
-macosx-lib: $(OBJ)
-	$(CC) -fPIC -Wl,-undefined -Wl,dynamic_lookup -shared -o libv.so $(OBJ)
-	$(CXX) -dynamiclib -undefined suppress -flat_namespace $(OBJ) -o libv.dylib
-
-clean:
-	rm -rf $(OBJ) libv.so* libv.a
-
-#some Windows / MINGW stuff
-win-lib: $(OBJ)
-	$(CC) -o ch.dll $(OBJ) -shared -Wl,--subsystem,windows,--out-implib,ch.lib
-
-win-clean:
-
-	rm -rf *.o
-	rm -rf *.a
-	rm -rf *.lib
-	rm -rf *.dll
-	rm -rf .\test\*.o
-	rm -rf *.so
-	rm -rf *.exe
-
-# depends
-v.o: v.h
+include	../makefiles/included_for_lib.mk

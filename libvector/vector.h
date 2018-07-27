@@ -1,4 +1,3 @@
-
 /*
    Copyright (c) 2003, Paul Stephen Borile
    All rights reserved.
@@ -25,26 +24,48 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-
 #ifndef VECTOR_H
 #define VECTOR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VECTOR_INIT_CAPACITY 20
 
-typedef struct vector {
+struct vector {
     void **items;
     int capacity;
     int total;
     short allocated;
-} v_h;
+    pthread_mutex_t lock;
+};
 
+typedef struct vector v_h;
+
+// Create a vector
 v_h *v_create(v_h *vh, int dim);
+
+// Get number of elements in vector
 int v_len(v_h *);
+
+// Insert an element
 void v_add(v_h *, void *);
+
+// Modify an element
 void v_set(v_h *, int, void *);
+
+// Get an element
 void *v_get(v_h *, int);
+
+// Delete an element
 void v_delete(v_h *, int);
+
+// Delete the vector
 void v_destroy(v_h *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
