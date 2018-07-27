@@ -1,0 +1,116 @@
+# The type of line endings
+newlines                                 = lf     # auto/lf/crlf/cr
+
+# The original size of tabs in the input
+input_tab_size                           = 4        # number
+
+# The size of tabs in the output (only used if align_with_tabs=true)
+output_tab_size                          = 4        # number
+
+align_with_tabs=true
+
+# The ASCII value of the string escape char, usually 92 (\) or 94 (^). (Pawn)
+string_escape_char                       = 92       # number
+
+# Alternate string escape char for Pawn. Only works right before the quote char.
+string_escape_char2                      = 0        # number
+
+# Allow interpreting '>=' and '>>=' as part of a template in 'void f(list<list<B>>=val);'.
+# If true (default), 'assert(x<0 && y>=3)' will be broken.
+# Improvements to template detection may make this option obsolete.
+tok_split_gte                            = false    # false/true
+
+# Control what to do with the UTF-8 BOM (recommend 'remove')
+utf8_bom                                 = ignore   # ignore/add/remove/force
+
+# If the file contains bytes with values between 128 and 255, but is not UTF-8, then output as UTF-8
+utf8_byte                                = false    # false/true
+
+# Force the output encoding to UTF-8
+utf8_force                               = false    # false/true
+
+#
+# Indenting
+#
+
+# The number of columns to indent per level.
+# Usually 2, 3, 4, or 8.
+indent_columns                           = 4        # number
+
+# The continuation indent. If non-zero, this overrides the indent of '(' and '=' continuation indents.
+# For FreeBSD, this is set to 4. Negative value is absolute and not increased for each ( level
+indent_continue                          = 0        # number
+
+# How to use tabs when indenting code
+# 0=spaces only
+# 1=indent with tabs to brace level, align with spaces
+# 2=indent and align with tabs, using spaces when not on a tabstop
+indent_with_tabs                         = 0        # number
+
+# Comments that are not a brace level are indented with tabs on a tabstop.
+# Requires indent_with_tabs=2. If false, will use spaces.
+indent_cmt_with_tabs                     = false    # false/true
+
+# Whether to indent strings broken by '\' so that they line up
+indent_align_string                      = false    # false/true
+
+# The number of spaces to indent multi-line XML strings.
+# Requires indent_align_string=True
+indent_xml_string                        = 0        # number
+
+# Spaces to indent '{' from level
+indent_brace                             = 0        # number
+
+# Whether braces are indented to the body level
+indent_braces                            = false    # false/true
+
+# Disabled indenting function braces if indent_braces is true
+indent_braces_no_func                    = false    # false/true
+
+# Disabled indenting class braces if indent_braces is true
+indent_braces_no_class                   = false    # false/true
+
+# Disabled indenting struct braces if indent_braces is true
+indent_braces_no_struct                  = false    # false/true
+
+# Indent based on the size of the brace parent, i.e. 'if' => 3 spaces, 'for' => 4 spaces, etc.
+indent_brace_parent                      = false    # false/true
+
+# Whether the 'namespace' body is indented
+indent_namespace                         = false    # false/true
+
+# The number of spaces to indent a namespace block
+indent_namespace_level                   = 0        # number
+
+# If the body of the namespace is longer than this number, it won't be indented.
+# Requires indent_namespace=true. Default=0 (no limit)
+indent_namespace_limit                   = 0        # number
+
+# Whether the 'extern "C"' body is indented
+indent_extern                            = false    # false/true
+
+# Whether the 'class' body is indented
+indent_class                             = false    # false/true
+
+# Whether to indent the stuff after a leading class colon
+indent_class_colon                       = false    # false/true
+
+# False=treat 'else\nif' as 'else if' for indenting purposes
+# True=indent the 'if' one level
+indent_else_if                           = false    # false/true
+
+# Amount to indent variable declarations after a open brace. neg=relative, pos=absolute
+indent_var_def_blk                       = 0        # number
+
+# Indent continued variable declarations instead of aligning.
+indent_var_def_cont                      = false    # false/true
+
+# True:  indent continued function call parameters one indent level
+# False: align parameters under the open paren
+indent_func_call_param                   = false    # false/true
+
+#  Allman style
+nl_fcall_brace                  = add
+nl_if_brace                     = add
+nl_fdef_brace                   = add
+
