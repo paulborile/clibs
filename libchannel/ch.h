@@ -24,6 +24,7 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #ifndef CH_H
 #define CH_H
 
@@ -54,6 +55,10 @@ struct _ch_h
 };
 typedef struct _ch_h ch_h;
 
+
+// typedef defining generic free function parameter in clean method
+typedef int ch_opaque_delete_func (void *);
+
 // error codes
 #define CH_MAGIC_ID 0x0CCA
 #define CH_OK 1
@@ -64,6 +69,7 @@ typedef struct _ch_h ch_h;
 #define CH_WRONG_PARAM -5
 #define CH_GET_NODATA -6
 #define CH_GET_ENDOFTRANSMISSION -7
+#define CH_FREE_NOT_REQUESTED -8
 
 // ch_create datalen types
 #define CH_DATALEN_STRING -1
@@ -87,7 +93,7 @@ int ch_get(ch_h *ch, void *block);
 int ch_peek(ch_h *ch, void *block);
 int ch_setattr(ch_h *ch, int attr, int val);
 int ch_getattr(ch_h *ch, int attr, int *val);
-int ch_clean(ch_h *ch);
+int ch_clean(ch_h *ch, ch_opaque_delete_func (*del_func));
 int ch_destroy(ch_h *ch);
 
 #ifdef __cplusplus

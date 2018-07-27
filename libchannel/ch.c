@@ -140,10 +140,7 @@ static int _ch_put(ch_h *ch, void *block, int where)
     // check if threads blocked in get notify them
     if ((ch->attr & CH_ATTR_BLOCKING_GET) == CH_ATTR_BLOCKING_GET)
     {
-        if (ch->waiting_threads != 0)
-        {
-            pthread_cond_signal(&(ch->ch_condvar));
-        }
+        pthread_cond_signal(&(ch->ch_condvar));
     }
 
     int ccount = ch->count;
@@ -219,9 +216,9 @@ int ch_get(ch_h *ch, void *block)
     }
     else if ( ch->datalen == CH_DATALEN_VOIDP )
     {
+        void **fake = block;
         //just copy poiters
-        void **p = block;
-        *p = element->block;
+        *fake = element->block;
     }
     else if ( ch->datalen == CH_DATALEN_STRING )
     {
@@ -236,7 +233,7 @@ int ch_get(ch_h *ch, void *block)
         ch->tail = NULL;
     }
 
-    if ( ch->datalen != CH_DATALEN_VOIDP)
+    if ( ch->datalen != CH_DATALEN_VOIDP )
     {
         free(element->block);
         element->block = NULL;
@@ -278,8 +275,9 @@ int ch_peek(ch_h *ch, void *block)
     }
     else if ( ch->datalen == CH_DATALEN_VOIDP )
     {
+        void **fake = block;
         //just copy poiters
-        block = element->block;
+        *fake = element->block;
     }
     else if ( ch->datalen == CH_DATALEN_STRING )
     {
@@ -341,12 +339,19 @@ int ch_getattr(ch_h *ch, int attr, int *val)
 }
 
 // emtpy the channel without signalling ayone
-int ch_clean(ch_h *ch)
+int ch_clean(ch_h *ch, ch_opaque_delete_func (*del_func))
 {
     ch_elem_t *element = NULL;
     ch_elem_t *cur_element = NULL;
 
     CH_CHECK(ch);
+
+    // User set del_func but hash table doesn't contain void pointers: set error to return (but still clean the table)
+    if(del_func != NULL && ch->datalen != CH_DATALEN_VOIDP)
+    {
+        return CH_FREE_NOT_REQUESTED;
+    }
+
     _ch_lock(ch);
 
     if (ch->count != 0)
@@ -357,10 +362,21 @@ int ch_clean(ch_h *ch)
         // If channel transports pointers, element clean isn't needed
         while (element != NULL)
         {
-            if ( ch->datalen != CH_DATALEN_VOIDP && element->block != CH_ENDOFTRANSMISSION )
+            if ( element->block != CH_ENDOFTRANSMISSION )
             {
-                free(element->block);
-                element->block = NULL;
+                if ( ch->datalen == CH_DATALEN_VOIDP )
+                {
+                    // If element block is a pointer, and caller provided a custom free function, use it
+                    if(del_func != NULL)
+                    {
+                        del_func(element->block);
+                    }
+                }
+                else
+                {
+                    free(element->block);
+                    element->block = NULL;
+                }
             }
             free(element);
             ch->count--;
@@ -386,11 +402,8 @@ int ch_clean(ch_h *ch)
 // destroys and signals waiting threads
 int ch_destroy(ch_h *ch)
 {
-    ch_elem_t *element = NULL;
-    ch_elem_t *cur_element = NULL;
-
     CH_CHECK(ch);
-    ch_clean(ch);
+    ch_clean(ch, NULL);
 
     ch->magic = 0xD;
     // wakeup sleeping threads
