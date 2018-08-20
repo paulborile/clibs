@@ -24,6 +24,8 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "ch.h"
+
 #ifndef THP_H
 #define THP_H
 
@@ -36,15 +38,24 @@ extern "C" {
 
 #define THP_OK               1   // No error
 #define THP_BAD_HANDLE       -1  // handle null of not pointing to thp_
+#define THP_WRONG_PARAM      -2
+#define THP_TOO_MANY_WAIT    -3 // only one thp_wait() can be running at a time
 
 // thp object
 struct _thp_h {
     int magic;
+    ch_h in_queue; // jobs are queued here for execution
+    ch_h wait_queue; // terminated jobs are queued here for wait
+    int wait_calls; // ensure that only 1 wait is running
+    int submitted; // total number of submitted jobs
+    int to_be_waited; // totale number of jobs to be currenlty waited for (size of wait_queue)
+    pthread_mutex_t mutex; // protection for thp_h
+    int allocated; // tell if this handle has been allocated by ib or not.
 };
 typedef struct _thp_h thp_h;
 
 // create a thread pool
-thp_h *thp_create(int num_threads);
+thp_h *thp_create(thp_h *thp, int num_threads);
 int thp_add(thp_h *thp, void (*fun_p)(void *), void *arg);
 void thp_wait(thp_h *thp);
 void thp_destroy(thp_h *thp );
