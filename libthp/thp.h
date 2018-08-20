@@ -54,9 +54,13 @@ struct _thp_h {
 };
 typedef struct _thp_h thp_h;
 
+// work function
+typedef void (*thp_fun)(void *arg);
+
 // create a thread pool
 thp_h *thp_create(thp_h *thp, int num_threads);
-int thp_add(thp_h *thp, void (*fun_p)(void *), void *arg);
+//
+int thp_add(thp_h *thp, thp_fun fun_p);
 void thp_wait(thp_h *thp);
 void thp_destroy(thp_h *thp );
 

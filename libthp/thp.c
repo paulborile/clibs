@@ -19,9 +19,9 @@
 // jobs entry
 struct _thp_job_t
 {
-    void (*fun_p)(void *); // pointer to function thread as to run
+    thp_fun fun_p; // pointer to function thread as to run
 };
-typedef struct _thp_job thp_job_t;
+typedef struct _thp_job_t thp_job_t;
 
 #define THP_CHECK(f) if ((!f) || (f->magic != THP_MAGIC_ID)) return (THP_BAD_HANDLE);
 #define THP_CHECK_BLOCK(f,b) if ((!f) || (!b) || (f->magic != THP_MAGIC_ID)) return (THP_WRONG_PARAM);
@@ -37,9 +37,9 @@ static void _thp_unlock(thp_h *thp)
 }
 
 // allocate thp_job_t and set fun pointer value
-thp_job_t *_thp_job_create(void (*fun_p)(void *))
+static thp_job_t *_thp_job_create(thp_fun fun_p)
 {
-    thp_job_t *tj = malloc(sizeof thp_job_t);
+    thp_job_t *tj = malloc(sizeof(thp_job_t));
     tj->fun_p = fun_p;
     return tj;
 }
@@ -69,16 +69,19 @@ thp_h *thp_create(thp_h *thp, int num_threads)
 
     pthread_mutex_init(&(thp->mutex), NULL);
 
-    return NULL;
+    return thp;
 }
 
-// add work to thread pool
-int thp_add(thp_h *thp, void (*fun_p)(void *), void *arg)
+// add work to thread pool, return current number of jobs pushed
+int thp_add(thp_h *thp, thp_fun fun_p)
 {
-    // create thp_job
-    thp_job_t *tj = _thp_job_create(fun_p);
-    // enque it
-    ch_put(thp->in_queue, tj);
+    /*
+       // create thp_job
+       thp_job_t *tj = _thp_job_create(fun_p);
+       // enque it
+       ch_put(thp->in_queue, tj);
+     */
+    return 1;
 }
 
 // wait for work to complete
@@ -88,13 +91,25 @@ void thp_wait(thp_h *thp)
        while (count++ < thp->submitted)
        {
        ch_get(wait_queue, );
+       to_be_waited--;
        }
        return;
      */
+    return;
 }
 
 // cleanup and free the pool
 void thp_destroy(thp_h *thp )
 {
+    ch_destroy(&thp->in_queue);
+    ch_destroy(&thp->wait_queue);
 
+    pthread_mutex_destroy(&(thp->mutex));
+
+    if (thp->allocated)
+    {
+        free(thp);
+    }
+
+    return;
 }
