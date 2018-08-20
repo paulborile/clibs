@@ -372,7 +372,7 @@ TEST(FH, multithread_test_with_enum)
 
     if(strlen(file) <= 0)
     {
-        strcpy(file, "/opt/ua_repo/ua-bench-devices-small.txt");
+        strcpy(file, "./data.txt");
     }
 
     cout << "Input file is " << file << endl;
@@ -466,7 +466,7 @@ TEST(FH, multithread_test_with_enum)
 }
 
 // Check if get and enumerator functions should work at the same time with void pointer hashtable
-TEST(FH, multithread_test_with_void_pointer)
+TEST(FH, DISABLED_multithread_test_with_void_pointer)
 {
     char file[200];
     strcpy(file, CommandLineParamsParser::GetInstance()->GetValue("data-file").c_str());
