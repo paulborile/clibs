@@ -36,10 +36,12 @@ extern "C" {
 /** hash magic */
 #define THP_MAGIC_ID         0xFEAD
 
-#define THP_OK               1   // No error
+#define THP_OK                1   // No error
 #define THP_BAD_HANDLE       -1  // handle null of not pointing to thp_
 #define THP_WRONG_PARAM      -2
 #define THP_TOO_MANY_WAIT    -3 // only one thp_wait() can be running at a time
+#define THP_NO_MEMORY        -4 // only one thp_wait() can be running at a time
+#define THP_INTERNAL_ERROR_CH_CREATE    -5
 
 // thp object
 struct _thp_h {
@@ -50,6 +52,7 @@ struct _thp_h {
     int submitted; // total number of submitted jobs
     int to_be_waited; // totale number of jobs to be currenlty waited for (size of wait_queue)
     pthread_mutex_t mutex; // protection for thp_h
+    int num_threads; // number of threads created
     int allocated; // tell if this handle has been allocated by ib or not.
 };
 typedef struct _thp_h thp_h;
@@ -58,8 +61,7 @@ typedef struct _thp_h thp_h;
 typedef void (*thp_fun)(void *arg);
 
 // create a thread pool
-thp_h *thp_create(thp_h *thp, int num_threads);
-//
+thp_h *thp_create(thp_h *thp, int num_threads, int *err);
 int thp_add(thp_h *thp, thp_fun fun_p);
 void thp_wait(thp_h *thp);
 void thp_destroy(thp_h *thp );
