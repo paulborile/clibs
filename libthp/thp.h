@@ -48,22 +48,23 @@ struct _thp_h {
     int magic;
     ch_h in_queue; // jobs are queued here for execution
     ch_h wait_queue; // terminated jobs are queued here for wait
-    int wait_calls; // ensure that only 1 wait is running
+    int wait_running; // ensure that only 1 wait is running
     int submitted; // total number of submitted jobs
     int to_be_waited; // totale number of jobs to be currenlty waited for (size of wait_queue)
     pthread_mutex_t mutex; // protection for thp_h
     int num_threads; // number of threads created
+    pthread_t *threads; // array of pthread_t elements
     int allocated; // tell if this handle has been allocated by ib or not.
 };
 typedef struct _thp_h thp_h;
 
 // work function
-typedef void (*thp_fun)(void *arg);
+typedef void * (*thp_fun)(void *arg);
 
 // create a thread pool
 thp_h *thp_create(thp_h *thp, int num_threads, int *err);
-int thp_add(thp_h *thp, thp_fun fun_p);
-void thp_wait(thp_h *thp);
+int thp_add(thp_h *thp, thp_fun fun_p, void *arg);
+int thp_wait(thp_h *thp);
 void thp_destroy(thp_h *thp );
 
 #ifdef __cplusplus

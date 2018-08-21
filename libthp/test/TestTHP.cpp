@@ -17,30 +17,46 @@ TEST(THP, basic_test)
     thp_destroy(t);
 }
 
-int counter = 0;
-static void adder(void *v)
+long counter = 0;
+static void *adder(void *v)
 {
-    counter++;
+    long inc = (long) v;
+    counter += inc;
+    return 0;
 }
 
-static void subber(void *v)
-{
-    counter--;
-}
-
-TEST(THP, ThreadRun)
+TEST(THP, ThreadRunNoParam)
 {
     int err;
 
-    thp_h *t = thp_create(NULL, 2, &err);
+    thp_h *t = thp_create(NULL, 4, &err);
     EXPECT_NE(0, t);
 
     counter = 0;
     for (int i = 0; i <100; i++)
     {
-        thp_add(t, adder);
+        thp_add(t, adder, (void *)1);
     }
-    thp_wait(t);
+    EXPECT_EQ(100, thp_wait(t));
     EXPECT_EQ(100, counter);
+    thp_destroy(t);
+}
+
+TEST(THP, ThreadRunWithParam)
+{
+    int err;
+    int max = 100;
+
+    thp_h *t = thp_create(NULL, 4, &err);
+    EXPECT_NE(0, t);
+
+    counter = 0;
+    for (int i = 0; i <max; i++)
+    {
+        thp_add(t, adder, (void *)i);
+    }
+    EXPECT_EQ(max, thp_wait(t));
+    // thanks Gauss
+    EXPECT_EQ(max*(max+1)/2, counter);
     thp_destroy(t);
 }

@@ -19,7 +19,8 @@
 // jobs entry
 struct _thp_job_t
 {
-    thp_fun fun_p; // pointer to function thread as to run
+    thp_fun fun; // pointer to function thread as to run
+    void *fun_param; // param to pass to function
 };
 typedef struct _thp_job_t thp_job_t;
 
@@ -37,11 +38,29 @@ static void _thp_unlock(thp_h *thp)
 }
 
 // allocate thp_job_t and set fun pointer value
-static thp_job_t *_thp_job_create(thp_fun fun_p)
+static thp_job_t *_thp_job_create(thp_fun fun_p, void *arg)
 {
     thp_job_t *tj = malloc(sizeof(thp_job_t));
-    tj->fun_p = fun_p;
+    tj->fun = fun_p;
+    tj->fun_param = arg;
     return tj;
+}
+
+static void *thp_queue_runner(void *thp)
+{
+    thp_h *t = (thp_h *) thp;
+    thp_job_t *tj = NULL;
+
+    while ( ch_get(&t->in_queue, &tj) != CH_GET_ENDOFTRANSMISSION )
+    {
+        // execute job
+        tj->fun(tj->fun_param);
+        ch_put(&t->wait_queue, tj);
+        // pass job to wait queue
+    }
+    // got END of CH_GET_ENDOFTRANSMISSION
+    // terminate
+    return 0;
 }
 
 // create a thread pool
@@ -74,28 +93,31 @@ thp_h *thp_create(thp_h *thp, int num_threads, int *err)
         *err = THP_INTERNAL_ERROR_CH_CREATE;
         return NULL;
     }
-    thp->wait_calls = 0;
+    thp->wait_running = 0;
     thp->to_be_waited = 0;
     thp->submitted = 0;
     thp->num_threads = num_threads;
 
     pthread_mutex_init(&(thp->mutex), NULL);
 
-    // now start num_threads threads
+    // allocate space for pthread_t ids - TODO check calloc return
+    thp->threads = calloc(num_threads, sizeof(pthread_t));
 
+    // now start num_threads threads
     for (int i=0; i < num_threads; i++)
     {
-
+        // start thread and keep pthread_ids;
+        pthread_create(&thp->threads[i], NULL, &thp_queue_runner, thp);
     }
 
     return thp;
 }
 
 // add work to thread pool, return current number of jobs pushed
-int thp_add(thp_h *thp, thp_fun fun_p)
+int thp_add(thp_h *thp, thp_fun fun_p, void *arg)
 {
     // create thp_job
-    thp_job_t *tj = _thp_job_create(fun_p);
+    thp_job_t *tj = _thp_job_create(fun_p, arg);
     // enque it
 
     _thp_lock(thp);
@@ -114,23 +136,30 @@ int thp_add(thp_h *thp, thp_fun fun_p)
 }
 
 // wait for work to complete
-void thp_wait(thp_h *thp)
+int thp_wait(thp_h *thp)
 {
     thp_job_t *tj;
+    int count = 0;
 
     _thp_lock(thp);
+    if (thp->wait_running != 0 )
+    {
+        // thp_wait already running, only one at a time
+        return THP_TOO_MANY_WAIT;
+    }
     // nothing to wait for
     if ( thp->to_be_waited == 0 )
     {
         _thp_unlock(thp);
-        return;
+        return 0;
     }
     while (thp->to_be_waited)
     {
         ch_get(&thp->wait_queue, &tj);
         thp->to_be_waited--;
+        count++;
     }
-    return;
+    return count;
 }
 
 // cleanup and free the pool
@@ -142,6 +171,12 @@ void thp_destroy(thp_h *thp )
         ch_put(&thp->in_queue, CH_ENDOFTRANSMISSION);
     }
     // all the threads should terminate now
+
+    void *retval;
+    for (int i =0; i<thp->num_threads; i++)
+    {
+        pthread_join(thp->threads[i], &retval);
+    }
 
     // wait for all threads if any
     thp_wait(thp);

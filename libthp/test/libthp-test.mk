@@ -15,7 +15,7 @@ LIB = thp
 EXE = testthp
 SRC = TestMain.cpp TestTHP.cpp
 LOCAL_CXXFLAGS = -I../../libchannel
-LOCAL_LDFLAGS = -L../../libchannel -lch
+LOCAL_LDFLAGS = -L../../libchannel -lch-debug
 # if any special options has to be passed to test run
 # RUN_OPTIONS = 
 RUN_OPTIONS =
