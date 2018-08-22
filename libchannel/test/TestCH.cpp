@@ -276,9 +276,9 @@ TEST(CH, simple_channel_test)
     ASSERT_NE((ch_h *)0, ch);
 
     // General settings for threads
-    pthread_attr_init(&tattr);
-    pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-    pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
+    // pthread_attr_init(&tattr);
+    // pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+    // pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
 
 //    retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GET);
 //    EXPECT_EQ(CH_OK, retval);
@@ -433,9 +433,9 @@ TEST(CH, pointer_channel_test)
     ASSERT_NE((ch_h *)0, ch);
 
     // General settings for threads
-    pthread_attr_init(&tattr);
-    pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-    pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
+    //pthread_attr_init(&tattr);
+    //pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+    //pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
 
 //    retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GET);
 //    EXPECT_EQ(CH_OK, retval);
@@ -472,9 +472,9 @@ TEST(CH, clean_execution_test)
     ASSERT_NE((ch_h *)0, ch);
 
     // General settings for threads
-    pthread_attr_init(&tattr);
-    pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-    pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
+    //pthread_attr_init(&tattr);
+    //pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+    //pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
 
     pthread_ret = pthread_create(&th_writer, NULL, &thread_pointer_writer, (void *)ch);
     ASSERT_EQ(0, pthread_ret);
@@ -598,4 +598,130 @@ TEST(CH, eot_in_the_middle_test)
     // Free data
     free(element);
     free(element2);
+}
+
+struct th_data
+{
+    ch_h *ch;
+    int thread_number;
+    int num_reader;
+    int num_writer;
+    int num_messages;
+};
+
+int msgs_per_thread[16]; // don't use more that 16 threads
+
+void *writer(void *v)
+{
+    struct th_data *t = (struct th_data *)v;
+    const char *str = "a string address to use";
+    // send data
+    for (int i=0; i<t->num_messages/t->num_writer; i++)
+    {
+        ch_put(t->ch, (void *) str);
+    }
+
+    // terminate sending 1 EOT for each thread. reader thread will recevie EOT and terminate
+    // only writer thread 0 does this and after a while to be sure that if there are other writers
+    // all have finished
+    if ( t->thread_number == 0 )
+    {
+        sleep(1); // coarse way of letting all other writers thread terminate
+        for (int i =0; i<t->num_reader; i++)
+        {
+            ch_put(t->ch, CH_ENDOFTRANSMISSION);
+        }
+    }
+    return NULL;
+}
+
+void *reader(void *v)
+{
+    struct th_data *t = (struct th_data *)v;
+
+    char *d;
+    int rc;
+    while (( rc = ch_get(t->ch, &d)) != CH_GET_ENDOFTRANSMISSION )
+    {
+        if (rc == CH_OK)
+        {
+            msgs_per_thread[t->thread_number]++;
+        }
+        else
+        {
+            //printf("reader %d, error %d in ch_get\n", t->thread_number, rc);
+        }
+    }
+
+    return NULL;
+}
+
+TEST(CH, MT_N_Writer_M_Reader)
+{
+    ch_h *ch = NULL;
+    pthread_t th_writer[16], th_reader[16];
+    int pthread_ret = 0, retval;
+    void *th_ret;
+
+    ch = (ch_h *)ch_create(NULL, CH_DATALEN_VOIDP);
+    ASSERT_NE((ch_h *)0, ch);
+
+#define NUM_READER 5
+#define NUM_WRITER 2
+#define NUM_MESSAGES (1000000 * NUM_READER)
+
+    struct th_data rtdata[16];
+    struct th_data wtdata[16];
+
+    for (int i = 0; i<NUM_READER; i++)
+    {
+        memset(&rtdata[i], 0, sizeof(struct th_data));
+
+        rtdata[i].num_reader = NUM_READER;
+        rtdata[i].num_writer = NUM_WRITER;
+        rtdata[i].num_messages = NUM_MESSAGES;
+        rtdata[i].ch = ch;
+        rtdata[i].thread_number = i;
+        pthread_ret = pthread_create(&th_reader[i], NULL, &reader, (void *)&rtdata[i]);
+        ASSERT_EQ(0, pthread_ret);
+    }
+
+    for (int i = 0; i<NUM_WRITER; i++)
+    {
+        memset(&wtdata[i], 0, sizeof(struct th_data));
+
+        wtdata[i].num_reader = NUM_READER;
+        wtdata[i].num_writer = NUM_WRITER;
+        wtdata[i].num_messages = NUM_MESSAGES;
+        wtdata[i].ch = ch;
+        wtdata[i].thread_number = i;
+        pthread_ret = pthread_create(&th_writer[i], NULL, &writer, (void *)&wtdata[i]);
+        ASSERT_EQ(0, pthread_ret);
+    }
+
+    for (int i = 0; i<NUM_WRITER; i++)
+    {
+        pthread_join(th_writer[i], &th_ret);
+    }
+
+    for (int i = 0; i<NUM_READER; i++)
+    {
+        pthread_join(th_reader[i], &th_ret);
+    }
+
+    int sum = 0;
+    for (int i = 0; i<NUM_READER; i++)
+    {
+        printf("reader %d : messages processed %d\n", i, msgs_per_thread[i]);
+        sum += msgs_per_thread[i];
+    }
+
+    EXPECT_EQ(NUM_MESSAGES, sum);
+
+    int channel_count_at_end;
+    EXPECT_EQ(CH_OK, ch_getattr(ch, CH_COUNT, &channel_count_at_end));
+    EXPECT_EQ(0, channel_count_at_end);
+
+    retval = ch_destroy(ch);
+    EXPECT_EQ(CH_OK, retval);
 }

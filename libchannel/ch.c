@@ -201,6 +201,15 @@ int ch_get(ch_h *ch, void *block)
 
     if (element->block == CH_ENDOFTRANSMISSION)
     {
+        // detach top element
+
+        ch->head = ch->head->prev;
+
+        if (ch->head == NULL)
+        {
+            ch->tail = NULL;
+        }
+
         // special end of transmission signal
         element->block = NULL;
         free(element);
