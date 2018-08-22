@@ -17,38 +17,47 @@ TEST(THP, basic_test)
     thp_destroy(t);
 }
 
+pthread_mutex_t mutex;
 long counter = 0;
 static void *adder(void *v)
 {
     long inc = (long) v;
+    pthread_mutex_lock(&mutex);
     counter += inc;
+    pthread_mutex_unlock(&mutex);
     //printf("adder executing with %d, counter %d\n", inc, counter);
     return 0;
 }
+#define NUM_THREADS 6
+#define NUM_JOBS 100000
 
 TEST(THP, ThreadRunNoParam)
 {
     int err;
 
-    thp_h *t = thp_create(NULL, 1, &err);
+    pthread_mutex_init(&mutex, NULL);
+
+    thp_h *t = thp_create(NULL, NUM_THREADS, &err);
     EXPECT_NE(0, t);
 
     counter = 0;
-    for (int i = 0; i <100; i++)
+    for (int i = 0; i <NUM_JOBS; i++)
     {
         thp_add(t, adder, (void *)1);
     }
-    EXPECT_EQ(100, thp_wait(t));
-    EXPECT_EQ(100, counter);
+    EXPECT_EQ(NUM_JOBS, thp_wait(t));
+    EXPECT_EQ(NUM_JOBS, counter);
     thp_destroy(t);
 }
 
 TEST(THP, ThreadRunWithParam)
 {
     int err;
-    int max = 10;
+    long max = NUM_JOBS;
 
-    thp_h *t = thp_create(NULL, 1, &err);
+    pthread_mutex_init(&mutex, NULL);
+
+    thp_h *t = thp_create(NULL, NUM_THREADS, &err);
     EXPECT_NE(0, t);
 
     counter = 0;
@@ -58,6 +67,7 @@ TEST(THP, ThreadRunWithParam)
     }
     EXPECT_EQ(max, thp_wait(t));
     // thanks Gauss
-    EXPECT_EQ(max*(max+1)/2, counter);
+    long total = max*(max+1)/2;
+    EXPECT_EQ(total, counter);
     thp_destroy(t);
 }
