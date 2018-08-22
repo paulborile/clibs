@@ -11,7 +11,7 @@ using namespace std;
 TEST(THP, basic_test)
 {
     int err;
-    thp_h *t = thp_create(NULL, 4, &err);
+    thp_h *t = thp_create(NULL, 1, &err);
     EXPECT_NE(0, t);
 
     thp_destroy(t);
@@ -22,6 +22,7 @@ static void *adder(void *v)
 {
     long inc = (long) v;
     counter += inc;
+    //printf("adder executing with %d, counter %d\n", inc, counter);
     return 0;
 }
 
@@ -29,7 +30,7 @@ TEST(THP, ThreadRunNoParam)
 {
     int err;
 
-    thp_h *t = thp_create(NULL, 4, &err);
+    thp_h *t = thp_create(NULL, 1, &err);
     EXPECT_NE(0, t);
 
     counter = 0;
@@ -45,13 +46,13 @@ TEST(THP, ThreadRunNoParam)
 TEST(THP, ThreadRunWithParam)
 {
     int err;
-    int max = 100;
+    int max = 10;
 
-    thp_h *t = thp_create(NULL, 4, &err);
+    thp_h *t = thp_create(NULL, 1, &err);
     EXPECT_NE(0, t);
 
     counter = 0;
-    for (int i = 0; i <max; i++)
+    for (int i = 1; i <=max; i++)
     {
         thp_add(t, adder, (void *)i);
     }
