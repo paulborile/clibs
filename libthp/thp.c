@@ -50,13 +50,17 @@ static void *thp_queue_runner(void *thp)
 {
     thp_h *t = (thp_h *) thp;
     thp_job_t *tj = NULL;
+    int rc;
 
-    while ( ch_get(&t->in_queue, &tj) != CH_GET_ENDOFTRANSMISSION )
+    while (( rc = ch_get(&t->in_queue, &tj)) != CH_GET_ENDOFTRANSMISSION )
     {
         // execute job
-        tj->fun(tj->fun_param);
-        ch_put(&t->wait_queue, tj);
-        // pass job to wait queue
+        if (rc == CH_OK)
+        {
+            tj->fun(tj->fun_param);
+            // pass job to wait queue
+            ch_put(&t->wait_queue, tj);
+        }
     }
     // got END of CH_GET_ENDOFTRANSMISSION
     // terminate
@@ -147,18 +151,25 @@ int thp_wait(thp_h *thp)
         // thp_wait already running, only one at a time
         return THP_TOO_MANY_WAIT;
     }
+    thp->wait_running = 1;
     // nothing to wait for
     if ( thp->to_be_waited == 0 )
     {
+        thp->wait_running = 0;
         _thp_unlock(thp);
         return 0;
     }
     while (thp->to_be_waited)
     {
-        ch_get(&thp->wait_queue, &tj);
-        thp->to_be_waited--;
-        count++;
+        if ( ch_get(&thp->wait_queue, &tj) == CH_OK )
+        {
+            free(tj);
+            thp->to_be_waited--;
+            count++;
+        }
     }
+    thp->wait_running = 0;
+    _thp_unlock(thp);
     return count;
 }
 
@@ -185,6 +196,7 @@ void thp_destroy(thp_h *thp )
     ch_destroy(&thp->wait_queue);
 
     pthread_mutex_destroy(&(thp->mutex));
+    free(thp->threads);
     if (thp->allocated)
     {
         free(thp);
