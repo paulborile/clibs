@@ -17,14 +17,14 @@ TEST(THP, basic_test)
     thp_destroy(t);
 }
 
-pthread_mutex_t mutex;
+pthread_mutex_t counter_mutex;
 long counter = 0;
 static void *adder(void *v)
 {
     long inc = (long) v;
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&counter_mutex);
     counter += inc;
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&counter_mutex);
     //printf("adder executing with %d, counter %d\n", inc, counter);
     return 0;
 }
@@ -35,7 +35,7 @@ TEST(THP, ThreadRunNoParam)
 {
     int err;
 
-    pthread_mutex_init(&mutex, NULL);
+    pthread_mutex_init(&counter_mutex, NULL);
 
     thp_h *t = thp_create(NULL, NUM_THREADS, &err);
     EXPECT_NE(0, t);
@@ -55,7 +55,7 @@ TEST(THP, ThreadRunWithParam)
     int err;
     long max = NUM_JOBS;
 
-    pthread_mutex_init(&mutex, NULL);
+    pthread_mutex_init(&counter_mutex, NULL);
 
     thp_h *t = thp_create(NULL, NUM_THREADS, &err);
     EXPECT_NE(0, t);
