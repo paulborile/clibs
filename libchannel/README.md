@@ -1,4 +1,6 @@
-# libch
+# libch - a golang inspired channel library in C
+
+Connect producer / consumer threads with a thread safe channel
 
 ```
 make -f libch.mk releaseclean releaselinux debugclean debuglinux
