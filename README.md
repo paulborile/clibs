@@ -8,61 +8,10 @@ This repo contains standard components used to develop faster in C. All collecti
 Available components :
 
 - fh : a fast, multi-thread optimized open hash hashtable
-- lru : lru cache based on fh
 - channel : a golang inspired channel object with multi-thread aware blocking get operations
-- vector : a simple dynamic vector, non thread safe
+- vector : a simple dynamic vector
+- lru : lru cache based on fh
 
-
-## C LRU cache
-
-liblru : is a fast, thread safe Least Recently Used cache, basically a fixed size hashtable that discards least used items first. It is based on libfh (Fast Hash, se below) and on an internal lru list that keeps items ordered by use. Keys are always strings and payloads are void * so you will have to allocate everything outside and take care of freeing as well when/if needed.
-Sample code :
-
-```
-
-#include <stdio.h>
-#include <stdlib.h>
-#include "lru.h"
-
-int main(int argc, char **argv)
-{
-    char *str;
-    // create the lru
-    lru_t *l = lru_create(1000);
-
-    // check if an entry exists
-
-    if ( lru_check(l, "this is the key", (void *) &str) != LRU_OK)
-    {
-        // not found, add it
-        lru_add(l, "this is the key", "key payload");
-    }
-
-    // destroy
-
-    lru_destroy(l);
-
-    exit(1);
-}
-
-```
-
-To compile the liblru and test it :
-
-```
-cd liblru ; make -f liblru.mk clean lib
-cd test ; make ; ./lrutest <lrusize>
-
-```
-
-Performance : run on Intel Core i7-4710HQ CPU @ 2.50GHz :
-
-```
-$ ./lrutest 100000
-Average lru_check time in nanosecs : 295.28
-Average lru_add time in nanosecs : 156.32
-
-```
 
 ## C Hashtable
 
@@ -77,7 +26,7 @@ Sample code :
 
 int main(int argc, char **argv)
 {
-    fh_t *f = fh_create(1000, -1, NULL); // opaque data is string, using builtin hash function
+    fh_t *f = fh_create(1000, FH_DATALEN_STRING, NULL); // opaque data is string, using builtin hash function
 
     int err = fh_insert(f, "thekey", "value");
 
@@ -137,3 +86,55 @@ deleting ..
 hash elements 0
 ------------ end of tests
 ```
+
+## C LRU cache
+
+liblru : is a fast, thread safe Least Recently Used cache, basically a fixed size hashtable that discards least used items first. It is based on libfh (Fast Hash, se below) and on an internal lru list that keeps items ordered by use. Keys are always strings and payloads are void * so you will have to allocate everything outside and take care of freeing as well when/if needed.
+Sample code :
+
+```
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "lru.h"
+
+int main(int argc, char **argv)
+{
+    char *str;
+    // create the lru
+    lru_t *l = lru_create(1000);
+
+    // check if an entry exists
+
+    if ( lru_check(l, "this is the key", (void *) &str) != LRU_OK)
+    {
+        // not found, add it
+        lru_add(l, "this is the key", "key payload");
+    }
+
+    // destroy
+
+    lru_destroy(l);
+
+    exit(1);
+}
+
+```
+
+To compile the liblru and test it :
+
+```
+cd liblru ; make -f liblru.mk clean lib
+cd test ; make ; ./lrutest <lrusize>
+
+```
+
+Performance : run on Intel Core i7-4710HQ CPU @ 2.50GHz :
+
+```
+$ ./lrutest 100000
+Average lru_check time in nanosecs : 295.28
+Average lru_add time in nanosecs : 156.32
+
+```
+
