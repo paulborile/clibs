@@ -4,16 +4,20 @@
 
 #include <pthread.h>
 #include <string.h>
+
+#include <thread>
+#include <chrono>
 using namespace std;
 
+
 // Variables for thread problems during development - Keep them for eventual future investigations
-pthread_mutex_t mutex;
+pthread_mutex_t p_mutex;
 pthread_cond_t condvar;
 int sharedcounter = 0;
 
 struct _tst_struct
 {
-    pthread_mutex_t mutex;
+    pthread_mutex_t p_mutex;
     pthread_cond_t condvar;
     int counter;
 };
@@ -626,7 +630,7 @@ void *writer(void *v)
     // all have finished
     if ( t->thread_number == 0 )
     {
-        sleep(1); // coarse way of letting all other writers thread terminate
+        this_thread::sleep_for(chrono::seconds(1)); // coarse way of letting all other writers thread terminate
         for (int i =0; i<t->num_reader; i++)
         {
             ch_put(t->ch, CH_ENDOFTRANSMISSION);
@@ -673,19 +677,7 @@ TEST(CH, MT_N_Writer_M_Reader)
     struct th_data rtdata[16];
     struct th_data wtdata[16];
 
-    for (int i = 0; i<NUM_READER; i++)
-    {
-        memset(&rtdata[i], 0, sizeof(struct th_data));
-
-        rtdata[i].num_reader = NUM_READER;
-        rtdata[i].num_writer = NUM_WRITER;
-        rtdata[i].num_messages = NUM_MESSAGES;
-        rtdata[i].ch = ch;
-        rtdata[i].thread_number = i;
-        pthread_ret = pthread_create(&th_reader[i], NULL, &reader, (void *)&rtdata[i]);
-        ASSERT_EQ(0, pthread_ret);
-    }
-
+    // start writers
     for (int i = 0; i<NUM_WRITER; i++)
     {
         memset(&wtdata[i], 0, sizeof(struct th_data));
@@ -699,6 +691,24 @@ TEST(CH, MT_N_Writer_M_Reader)
         ASSERT_EQ(0, pthread_ret);
     }
 
+    printf("channels waiting threads %d\n", ch->waiting_threads);
+
+    // start readers
+    for (int i = 0; i<NUM_READER; i++)
+    {
+        memset(&rtdata[i], 0, sizeof(struct th_data));
+
+        rtdata[i].num_reader = NUM_READER;
+        rtdata[i].num_writer = NUM_WRITER;
+        rtdata[i].num_messages = NUM_MESSAGES;
+        rtdata[i].ch = ch;
+        rtdata[i].thread_number = i;
+        pthread_ret = pthread_create(&th_reader[i], NULL, &reader, (void *)&rtdata[i]);
+        ASSERT_EQ(0, pthread_ret);
+    }
+
+    printf("channels waiting threads %d\n", ch->waiting_threads);
+
     for (int i = 0; i<NUM_WRITER; i++)
     {
         pthread_join(th_writer[i], &th_ret);
@@ -708,6 +718,8 @@ TEST(CH, MT_N_Writer_M_Reader)
     {
         pthread_join(th_reader[i], &th_ret);
     }
+
+    printf("channels waiting threads %d\n", ch->waiting_threads);
 
     int sum = 0;
     for (int i = 0; i<NUM_READER; i++)

@@ -171,21 +171,14 @@ int ch_get(ch_h *ch, void *block)
 
     if (ch->count == 0)
     {
-        if ((ch->attr & CH_ATTR_BLOCKING_GET) == CH_ATTR_BLOCKING_GET)
-        {
-            ch->waiting_threads++;
-
-            pthread_cond_wait(&(ch->ch_condvar), &(ch->ch_mutex));
-        }
-        else
+        if ((ch->attr & CH_ATTR_BLOCKING_GET) != CH_ATTR_BLOCKING_GET)
         {
             _ch_unlock(ch);
             return CH_GET_NODATA;
         }
-    }
 
-    if ((ch->attr & CH_ATTR_BLOCKING_GET) == CH_ATTR_BLOCKING_GET)
-    {
+        ch->waiting_threads++;
+        pthread_cond_wait(&(ch->ch_condvar), &(ch->ch_mutex));
         ch->waiting_threads--;
 
         if (ch->count == 0)
