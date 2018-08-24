@@ -100,8 +100,9 @@ int main(int argc, char **argv)
 To compile :
 
 ```
-cd libfh ; make -f libfh.mk clean lib
-cd test ; make ; ./fhtest <hashsize>
+cd libfh ; make -f libfh.mk releaseclean releaselinux debugclean debuglinux
+cd test
+make -f libfh-test.mk testclean testlinux testrun
 ```
 
 Performance : run on Intel Core i7-4710HQ CPU @ 2.50GHz
