@@ -1,4 +1,4 @@
-# clibs - a collection of basic tools in C
+# clibs - collections in C
 
 This repo contains standard components used to develop faster in C. All collection try to apply the same concepts :
 - multi-instantiable : a create function allocates-returns/sets-a-preallocated handle type to be used to refer to that instance of the object
