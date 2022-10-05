@@ -65,8 +65,4 @@ private:
 };
 
 
-// #define UPDATER_URL "https://data.scientiamobile.com/iqfad/wurfl.zip"
-#define UPDATER_URL "https://data.scientiamobile.com/wjdxg/daily/wurfl.zip"
-
-
 #endif /* COMMANDLINEPARAMS_H_ */
