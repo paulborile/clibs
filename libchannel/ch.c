@@ -17,7 +17,7 @@
 /*  Local types                                 */
 
 #define CH_CHECK(f) if ((!f) || (f->magic != CH_MAGIC_ID)) return (CH_BAD_HANDLE);
-#define CH_CHECK_BLOCK(f,b) if ((!f) || (!b) || (f->magic != CH_MAGIC_ID)) return (CH_WRONG_PARAM);
+#define CH_CHECK_BLOCK(f, b) if ((!f) || (!b) || (f->magic != CH_MAGIC_ID)) return (CH_WRONG_PARAM);
 
 static void _ch_lock(ch_h *ch)
 {
@@ -61,7 +61,7 @@ void *ch_create(ch_h *ch, int datalen)
     // ch->free_fun = free_fun;
 
     pthread_mutex_init(&(ch->ch_mutex), NULL);
-    pthread_cond_init(&(ch->ch_condvar),NULL);
+    pthread_cond_init(&(ch->ch_condvar), NULL);
     return ch;
 }
 
@@ -349,7 +349,7 @@ int ch_clean(ch_h *ch, ch_opaque_delete_func (*del_func))
     CH_CHECK(ch);
 
     // User set del_func but hash table doesn't contain void pointers: set error to return (but still clean the table)
-    if(del_func != NULL && ch->datalen != CH_DATALEN_VOIDP)
+    if (del_func != NULL && ch->datalen != CH_DATALEN_VOIDP)
     {
         return CH_FREE_NOT_REQUESTED;
     }
@@ -369,7 +369,7 @@ int ch_clean(ch_h *ch, ch_opaque_delete_func (*del_func))
                 if ( ch->datalen == CH_DATALEN_VOIDP )
                 {
                     // If element block is a pointer, and caller provided a custom free function, use it
-                    if(del_func != NULL)
+                    if (del_func != NULL)
                     {
                         del_func(element->block);
                     }

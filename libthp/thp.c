@@ -25,7 +25,7 @@ struct _thp_job_t
 typedef struct _thp_job_t thp_job_t;
 
 #define THP_CHECK(f) if ((!f) || (f->magic != THP_MAGIC_ID)) return (THP_BAD_HANDLE);
-#define THP_CHECK_BLOCK(f,b) if ((!f) || (!b) || (f->magic != THP_MAGIC_ID)) return (THP_WRONG_PARAM);
+#define THP_CHECK_BLOCK(f, b) if ((!f) || (!b) || (f->magic != THP_MAGIC_ID)) return (THP_WRONG_PARAM);
 
 static void _thp_lock(thp_h *thp)
 {
