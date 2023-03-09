@@ -115,13 +115,13 @@ fh_t *fh_create(int dim, int datalen, fh_hash_fun hash_function)
     }
 
     // compute pool size (function of hashtable size), save size in fh object, allocate lock pool, init locks
-    if(dim > SIZE_LIMIT_SINGLE_MUTEX)
+    if (dim > SIZE_LIMIT_SINGLE_MUTEX)
     {
         // Compute mutex number: it's base 2 logarythm of hashtable dimension
         int num = dim;
         int size = 0;
 
-        while(num > 0)
+        while (num > 0)
         {
             int half = num >> 1;
             size++;
@@ -137,7 +137,7 @@ fh_t *fh_create(int dim, int datalen, fh_hash_fun hash_function)
     }
 
     f->h_lock = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t) * f->n_lock);
-    if(f->h_lock == NULL)
+    if (f->h_lock == NULL)
     {
         free(hash);
         free(f);
@@ -197,10 +197,10 @@ int fh_setattr(fh_t *fh, int attr, int value)
     (void) value;
     FH_CHECK(fh);
 
-    switch(attr)
+    switch (attr)
     {
     case FH_SETATTR_DONTCOPYKEY:
-        if(fh->h_elements > 0)
+        if (fh->h_elements > 0)
         {
             return FH_ERROR_OPERATION_NOT_PERMITTED;
         }
@@ -218,7 +218,7 @@ int fh_getattr(fh_t *fh, int attr, int *value)
 {
     FH_CHECK(fh);
 
-    switch(attr)
+    switch (attr)
     {
     case FH_ATTR_ELEMENT:
         _fh_lock_fh(fh);
@@ -244,7 +244,7 @@ int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func))
     int result = FH_OK;
 
     // User set del_func but hash table doesn't contain void pointers: set error to return (but still clean the table)
-    if(del_func != NULL && fh->h_datalen != FH_DATALEN_VOIDP)
+    if (del_func != NULL && fh->h_datalen != FH_DATALEN_VOIDP)
     {
         return FH_FREE_NOT_REQUESTED;
     }
@@ -252,7 +252,7 @@ int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func))
     fh_enum_t *fhe = fh_enum_create(fh, 0, &result);
 
     // If enumerator is NULL something goes wrong. Return error to caller.
-    if(fhe == NULL)
+    if (fhe == NULL)
     {
         return result;
     }
@@ -267,7 +267,7 @@ int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func))
         if (fh->h_datalen == FH_DATALEN_VOIDP)
         {
             // If delete object function is passed, use it to delete opaque. Otherwise do nothing
-            if(del_func != NULL)
+            if (del_func != NULL)
             {
                 del_func(element->opaque_obj);
             }
@@ -436,7 +436,7 @@ int fh_del(fh_t *fh, char *key)
     int rc = _fh_del(fh, key, i);
     _fh_unlock(fh, i);
 
-    if(rc != FH_ELEMENT_NOT_FOUND)
+    if (rc != FH_ELEMENT_NOT_FOUND)
     {
         _fh_lock_fh(fh);
         (fh->h_elements)--;
@@ -454,7 +454,7 @@ int fh_dellocked(fh_t *fh, char *key, int locked_slot)
 
     int rc = _fh_del(fh, key, locked_slot);
 
-    if(rc != FH_ELEMENT_NOT_FOUND)
+    if (rc != FH_ELEMENT_NOT_FOUND)
     {
         _fh_lock_fh(fh);
         (fh->h_elements)--;
@@ -524,7 +524,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     register fh_slot *h_slot;
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
-    if(!block)
+    if (!block)
         return(FH_BUFFER_NULL);
 
     if ( fh->h_datalen == FH_DATALEN_VOIDP )
@@ -561,7 +561,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
         }
         else if ( fh->h_datalen == FH_DATALEN_STRING ) // copy string
         {
-            if(block_size < 0)
+            if (block_size < 0)
             {
                 _fh_unlock(fh, i);
                 return(FH_DIM_INVALID);
@@ -578,13 +578,13 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
 // search the hash and return pointer to the opaque_obj or NULL
 void *fh_get(fh_t *fh, char *key, int *error)
 {
-    if(!fh || fh->h_magic != FH_MAGIC_ID)
+    if (!fh || fh->h_magic != FH_MAGIC_ID)
     {
         *error = FH_BAD_HANDLE;
         return NULL;
     }
 
-    if(!key)
+    if (!key)
     {
         *error = FH_INVALID_KEY;
         return NULL;
@@ -626,13 +626,13 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
     int i;
     register fh_slot *h_slot;
 
-    if(!fh || fh->h_magic != FH_MAGIC_ID)
+    if (!fh || fh->h_magic != FH_MAGIC_ID)
     {
         *error = FH_BAD_HANDLE;
         return NULL;
     }
 
-    if(!key)
+    if (!key)
     {
         *error = FH_INVALID_KEY;
         return NULL;
@@ -699,14 +699,14 @@ int fh_scan_start(fh_t *fh, int start_index, void **slot)
 // Is_valid indicates if enumerator scan reached the end (0) or not (1).
 fh_enum_t *fh_enum_create(fh_t *fh, int sort_order, int *error)
 {
-    if(!fh || fh->h_magic != FH_MAGIC_ID)
+    if (!fh || fh->h_magic != FH_MAGIC_ID)
     {
         *error = FH_BAD_HANDLE;
         return NULL;
     }
 
     // Hashtable empty: don't create enumerator, it's useless
-    if(fh->h_elements < 1)
+    if (fh->h_elements < 1)
     {
         *error = FH_EMPTY_HASHTABLE;
         return NULL;
@@ -731,7 +731,7 @@ fh_enum_t *fh_enum_create(fh_t *fh, int sort_order, int *error)
             enum_index++;
 
             // Chek if other elements are set in this slot
-            while(current->next != NULL)
+            while (current->next != NULL)
             {
                 current = current->next;
                 fhe->elem_list[enum_index].key = current->key;
@@ -743,11 +743,11 @@ fh_enum_t *fh_enum_create(fh_t *fh, int sort_order, int *error)
     }
     fhe->size = enum_index;
 
-    if(sort_order == FH_ENUM_SORTED_ASC)
+    if (sort_order == FH_ENUM_SORTED_ASC)
     {
         qsort(fhe->elem_list, enum_index, sizeof(fh_elem_t), fh_ascfunc);
     }
-    else if(sort_order == FH_ENUM_SORTED_DESC)
+    else if (sort_order == FH_ENUM_SORTED_DESC)
     {
         qsort(fhe->elem_list, enum_index, sizeof(fh_elem_t), fh_descfunc);
     }
@@ -770,7 +770,7 @@ int fh_enum_move_next(fh_enum_t *fhe)
 
     fhe->idx++;
 
-    if(fhe->idx >= fhe->size)
+    if (fhe->idx >= fhe->size)
     {
         fhe->is_valid = 0;
     }
@@ -781,13 +781,13 @@ int fh_enum_move_next(fh_enum_t *fhe)
 // Get current element in the list.
 fh_elem_t *fh_enum_get_value(fh_enum_t *fhe, int *error)
 {
-    if(!fhe || fhe->magic != FHE_MAGIC_ID)
+    if (!fhe || fhe->magic != FHE_MAGIC_ID)
     {
         *error = FH_BAD_HANDLE;
         return NULL;
     }
 
-    if(fhe->is_valid == 1)
+    if (fhe->is_valid == 1)
     {
         return &fhe->elem_list[fhe->idx];
     }
