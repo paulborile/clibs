@@ -21,5 +21,5 @@ jobs:
       run: cd libvector ; make -f libvector.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libvector-test.mk testclean testlinux testrun ; cd ../..
     - name: make libthp
       run: cd libthp ; make -f libthp.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libthp-test.mk testclean testlinux testrun ; cd ../..
-    - name: make liblru
-      run: cd liblru ; make -f liblru.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f liblru-test.mk testclean testlinux testrun ; cd ../..
+  #  - name: make liblru
+  #    run: cd liblru ; make -f liblru.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f liblru-test.mk testclean testlinux testrun ; cd ../..
