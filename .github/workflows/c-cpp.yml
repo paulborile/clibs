@@ -20,4 +20,10 @@ jobs:
     - name: make libvector
       run: cd libvector ; make -f libvector.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libvector-test.mk testclean testlinux testrun ; cd ../..
     - name: make libthp
-      run: cd ; cd libthp ; make -f libthp.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libthp-test.mk testclean testlinux testrun ; cd ../..
+      run: >-
+        cd ; pwd ; 
+        cd libthp ;
+        make -f libthp.mk releaseclean releaselinux debugclean debuglinux ;
+        cd test ;
+        make -f libthp-test.mk testclean testlinux testrun ;
+        cd ../..
