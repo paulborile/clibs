@@ -16,7 +16,7 @@ typedef struct _th_params
     v_h *vh;
 } th_params;
 
-int thread_results [8][2] =
+int thread_results[8][2] =
 {
     { 0, 0 },
     { 0, 0 },
@@ -44,7 +44,7 @@ void *test_add_get(void *params)
     // Take UAs from a file
     ifstream uaStream(data->uaFile, ios::binary);
 
-    if(!uaStream)
+    if (!uaStream)
     {
         cout << "Cannot find " << data->uaFile << " UA file" << endl;
         return NULL;
@@ -55,7 +55,7 @@ void *test_add_get(void *params)
     while (getline(uaStream, line) /* && lineCount < 100 */ )
     {
         //       line = trim(line);
-        if(line.empty())
+        if (line.empty())
             continue;
 
         line = thread_signature + line;
@@ -108,7 +108,7 @@ TEST(Vector, VectorMultithread)
     string uaFile = CommandLineParamsParser::GetInstance()->GetValue("ua-file");
     if (uaFile == "")
     {
-        uaFile = "/opt/ua_repo/ua-bench-real-traffic-data-small.txt";
+        uaFile = "CommandLineParams.cpp";
     }
 
     // get the file's line number
@@ -116,7 +116,7 @@ TEST(Vector, VectorMultithread)
     int file_line_nbr = 0;
     ifstream uaStream(uaFile, ios::binary);
 
-    if(!uaStream)
+    if (!uaStream)
     {
         FAIL() << "Cannot find " << uaFile << " UA file" << endl;
     }
@@ -126,7 +126,7 @@ TEST(Vector, VectorMultithread)
     while (getline(uaStream, line) /* && lineCount < 100 */ )
     {
         //       line = trim(line);
-        if(line.empty())
+        if (line.empty())
             continue;
         file_line_nbr++;
     }

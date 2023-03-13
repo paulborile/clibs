@@ -17,7 +17,7 @@ TEST(V, basic_test)
     int size = v_len(vh);
     EXPECT_EQ(size, 0);
 
-    for(int ind = 0; ind < 10; ind++)
+    for (int ind = 0; ind < 10; ind++)
     {
         val[ind] = 100 + ind;
 
@@ -27,7 +27,7 @@ TEST(V, basic_test)
     size = v_len(vh);
     EXPECT_EQ(size, 10);
 
-    for(int ind = 0; ind < 10; ind++)
+    for (int ind = 0; ind < 10; ind++)
     {
         int *num = (int *)v_get(vh, ind);
         EXPECT_EQ(100 + ind, *num);
@@ -68,7 +68,7 @@ TEST(V, resize_test)
     int size = v_len(vh);
     EXPECT_EQ(size, 0);
 
-    for(int ind = 0; ind < 40; ind++)
+    for (int ind = 0; ind < 40; ind++)
     {
         val[ind] = 100 + ind;
 
