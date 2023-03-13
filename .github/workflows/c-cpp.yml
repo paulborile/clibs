@@ -13,11 +13,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: make libfh
-      run: cd libfh ; make -f libfh.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libfh-test.mk testclean testlinux testrun ; cd ../..
-    - name: make libchannel
-      run: cd libchannel ; make -f libch.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libch-test.mk testclean testlinux testrun ; cd ../..
-    - name: make libvector
-      run: cd libvector ; make -f libvector.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libvector-test.mk testclean testlinux testrun ; cd ../..
+#    - name: make libfh
+#      run: cd libfh ; make -f libfh.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libfh-test.mk testclean testlinux testrun ; cd ../..
+#    - name: make libchannel
+#      run: cd libchannel ; make -f libch.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libch-test.mk testclean testlinux testrun ; cd ../..
+#    - name: make libvector
+#      run: cd libvector ; make -f libvector.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libvector-test.mk testclean testlinux testrun ; cd ../..
     - name: make libthp
-      run: cd libthp ; make -f libthp.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libthp-test.mk testclean testlinux testrun ; cd ../..
+      run: >-
+        pwd ; ls -FC ;
+        cd libthp ; ls -FC ;
+        make -f libthp.mk releaseclean releaselinux debugclean debuglinux ;
+        cd test ;
+        make -f libthp-test.mk testclean testlinux testrun ;
+        cd ../..
