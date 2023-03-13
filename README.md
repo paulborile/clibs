@@ -1,3 +1,4 @@
+![CLIBS](https://github.com/paulborile/clibs/actions/workflows/c-cpp.yml/badge.svg)
 # clibs - collections in C
 
 This repo contains standard components used to develop faster in C. All libraries try to apply the same concepts :
