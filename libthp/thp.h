@@ -40,7 +40,7 @@ extern "C" {
 #define THP_BAD_HANDLE       -1  // handle null of not pointing to thp_
 #define THP_WRONG_PARAM      -2
 #define THP_TOO_MANY_WAIT    -3 // only one thp_wait() can be running at a time
-#define THP_NO_MEMORY        -4 // only one thp_wait() can be running at a time
+#define THP_NO_MEMORY        -4 // no mem
 #define THP_INTERNAL_ERROR_CH_CREATE    -5
 
 // thp object
