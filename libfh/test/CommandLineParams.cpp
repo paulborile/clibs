@@ -58,7 +58,7 @@ string CommandLineParamsParser::GetValue(const string& key)
     return "";
 }
 
-bool CommandLineParamsParser::Parse(int argc, char** argv, bool reportErrors)
+bool CommandLineParamsParser::Parse(int argc, char **argv, bool reportErrors)
 {
     // parse params
     for (int i = 1; i < argc; i++)
@@ -84,7 +84,7 @@ bool CommandLineParamsParser::Parse(int argc, char** argv, bool reportErrors)
                 theInstance->paramsMap.at(paramOption).value = argv[i + 1];
                 i++;
             }
-            else if(reportErrors)
+            else if (reportErrors)
             {
                 cerr << "Unknown " << (dashCount > 0 ? "option" : "token" ) << " : " << string(dashCount, '-') << paramOption << endl;
                 cerr << "Please SEPARATE options names and values with at least one space" << endl;
@@ -122,9 +122,9 @@ CommandLineParamsParser::~CommandLineParamsParser()
         delete theInstance;
 }
 
-CommandLineParamsParser* CommandLineParamsParser::theInstance = NULL;
+CommandLineParamsParser *CommandLineParamsParser::theInstance = NULL;
 
-CommandLineParamsParser* CommandLineParamsParser::GetInstance()
+CommandLineParamsParser *CommandLineParamsParser::GetInstance()
 {
     if (!theInstance)
     {

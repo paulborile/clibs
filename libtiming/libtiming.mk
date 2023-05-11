@@ -12,10 +12,10 @@
 # coverageclean
 
 # library suffix
-LIB = lru
-SRC = ll.c lru.c
+LIB = timing
+SRC = timing.c
 # any personal cflag needed by the library code
-RELEASE_CFLAGS = -I../libfh
-DEBUG_CFLAGS = -I../libfh
+RELEASE_CFLAGS =
+DEBUG_CFLAGS =
 
 include	../makefiles/included_for_lib.mk

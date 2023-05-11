@@ -38,12 +38,12 @@ void *scan_enumerator(void *param)
     int numloop = *((int *)param);
     cout << "Start thread scanning enumerator" << endl;
 
-    for(int index = 0; index < numloop; index++)
+    for (int index = 0; index < numloop; index++)
     {
         int error = 0;
 
         fh_enum_t *fhe = fh_enum_create(fhash, FH_ENUM_SORTED_ASC, &error);
-        if(fhe == NULL)
+        if (fhe == NULL)
         {
             break;
         }
@@ -53,7 +53,7 @@ void *scan_enumerator(void *param)
             fh_elem_t *element = fh_enum_get_value(fhe, &error);
 
             error = fh_enum_move_next(fhe);
-            if(error == FH_BAD_HANDLE)
+            if (error == FH_BAD_HANDLE)
             {
                 break;
             }
@@ -76,7 +76,7 @@ void *get_and_check(void *param)
     cout << "Start get and check thread" << endl;
     int different = 0;
 
-    for(int index = 0; index < numloop; index++)
+    for (int index = 0; index < numloop; index++)
     {
         // It's needed after first loop, I just want to know how much elements are modified in hashtable
         int attribute = 0;
@@ -86,19 +86,19 @@ void *get_and_check(void *param)
         // not how much are elements in hashtable (that could be more than savedata ones).
         attribute = sizeof(savedata) / sizeof(savedata[0]);
 
-        for(int ind = 0; ind < attribute; ind++)
+        for (int ind = 0; ind < attribute; ind++)
         {
             int error = 0;
 
             char *value = (char *)fh_get(fhash, savedata[ind].key, &error);
 
-            if(error < 0)
+            if (error < 0)
             {
                 continue;
             }
 
             const char *obj = (const char *)savedata[ind].opaque_obj;
-            if(strcmp(value, obj) != 0)
+            if (strcmp(value, obj) != 0)
             {
                 different++;
             }
@@ -119,19 +119,19 @@ void *search_and_modify(void *param)
     int bufsize = 100;
     char value[bufsize];
 
-    for(int index = 0; index < numloop; index++)
+    for (int index = 0; index < numloop; index++)
     {
         int attribute = 0;
         fh_getattr(fhash, FH_ATTR_ELEMENT, &attribute);
 
-        for(int ind = 0; ind < attribute; ind++)
+        for (int ind = 0; ind < attribute; ind++)
         {
             int error = 0;
             value[0] = '\0';
 
             error = fh_search(fhash, savedata[ind].key, value, bufsize);
 
-            if(error < 0)
+            if (error < 0)
             {
                 continue;
             }
@@ -155,18 +155,18 @@ void *del_and_insert(void *param)
     int nelem = 0;
     fh_getattr(fhash, FH_ATTR_ELEMENT, &nelem);
 
-    for(int index = 0; index < numloop; index++)
+    for (int index = 0; index < numloop; index++)
     {
         int attribute = 0;
         fh_getattr(fhash, FH_ATTR_ELEMENT, &attribute);
 
-        if(attribute > 0)
+        if (attribute > 0)
         {
-            for(int ind = 0; ind < nelem; ind++)
+            for (int ind = 0; ind < nelem; ind++)
             {
                 int error = fh_del(fhash, savedata[ind].key);
 
-                if(error < 0)
+                if (error < 0)
                 {
                     cout << "Delete error with key: " << savedata[ind].key << endl;
                 }
@@ -176,11 +176,11 @@ void *del_and_insert(void *param)
         }
         else
         {
-            for(int ind = 0; ind < nelem; ind++)
+            for (int ind = 0; ind < nelem; ind++)
             {
                 int error = fh_insert(fhash, savedata[ind].key, savedata[ind].opaque_obj);
 
-                if(error < 0)
+                if (error < 0)
                 {
                     cout << "Insert error with key: " << savedata[ind].key << endl;
                 }
@@ -201,23 +201,23 @@ void *searchlock_and_modify(void *param)
     int numloop = *((int *)param);
     cout << "Start searchlock and modify thread" << endl;
 
-    for(int index = 0; index < numloop; index++)
+    for (int index = 0; index < numloop; index++)
     {
         int attribute = 0;
         fh_getattr(fhash, FH_ATTR_ELEMENT, &attribute);
 
-        for(int ind = 0; ind < attribute; ind++)
+        for (int ind = 0; ind < attribute; ind++)
         {
             int error = 0, pos = 0;
 
             char *value = (char *)fh_searchlock(fhash, savedata[ind].key, &pos, &error);
 
-            if(error < 0)
+            if (error < 0)
             {
                 continue;
             }
 
-            if(strcmp((const char *)savedata[ind].opaque_obj, value) == 0)
+            if (strcmp((const char *)savedata[ind].opaque_obj, value) == 0)
             {
                 int len = strlen(value);
 
@@ -243,7 +243,7 @@ void *insert_only(void *param)
     int numloop = *((int *)param);
     cout << "Start insert only thread" << endl;
 
-    for(int index = 0; index < numloop; index++)
+    for (int index = 0; index < numloop; index++)
     {
         char key[9];
         sprintf(key, "%08d", 100000 + index);
@@ -252,7 +252,7 @@ void *insert_only(void *param)
         strcat(value, key);
         int error = fh_insert(fhash, key, value);
 
-        if(error < 0)
+        if (error < 0)
         {
             cout << "Insert error with key: " << key << " and value " << value << endl;
         }
@@ -269,7 +269,7 @@ TEST(FH, multithread_test)
     char file[200];
     strcpy(file, CommandLineParamsParser::GetInstance()->GetValue("data-file").c_str());
 
-    if(strlen(file) <= 0)
+    if (strlen(file) <= 0)
     {
         strcpy(file, "./data.txt");
     }
@@ -325,7 +325,7 @@ TEST(FH, multithread_test)
         ind++;
 
         error = fh_enum_move_next(fhe);
-        if(error == FH_BAD_HANDLE)
+        if (error == FH_BAD_HANDLE)
         {
             break;
         }
@@ -349,13 +349,13 @@ TEST(FH, multithread_test)
     fh_destroy(fhash);
 
     // Destroy savedata
-    for(int ind = 0; ind < size; ind++)
+    for (int ind = 0; ind < size; ind++)
     {
-        if(savedata[ind].key != NULL)
+        if (savedata[ind].key != NULL)
         {
             free(savedata[ind].key);
         }
-        if(savedata[ind].opaque_obj != NULL)
+        if (savedata[ind].opaque_obj != NULL)
         {
             free(savedata[ind].opaque_obj);
         }
@@ -370,7 +370,7 @@ TEST(FH, multithread_test_with_enum)
     char file[200];
     strcpy(file, CommandLineParamsParser::GetInstance()->GetValue("data-file").c_str());
 
-    if(strlen(file) <= 0)
+    if (strlen(file) <= 0)
     {
         strcpy(file, "./data.txt");
     }
@@ -426,7 +426,7 @@ TEST(FH, multithread_test_with_enum)
         ind++;
 
         error = fh_enum_move_next(fhe);
-        if(error == FH_BAD_HANDLE)
+        if (error == FH_BAD_HANDLE)
         {
             break;
         }
@@ -450,13 +450,13 @@ TEST(FH, multithread_test_with_enum)
     fh_destroy(fhash);
 
     // Destroy savedata
-    for(int ind = 0; ind < size; ind++)
+    for (int ind = 0; ind < size; ind++)
     {
-        if(savedata[ind].key != NULL)
+        if (savedata[ind].key != NULL)
         {
             free(savedata[ind].key);
         }
-        if(savedata[ind].opaque_obj != NULL)
+        if (savedata[ind].opaque_obj != NULL)
         {
             free(savedata[ind].opaque_obj);
         }
@@ -471,7 +471,7 @@ TEST(FH, DISABLED_multithread_test_with_void_pointer)
     char file[200];
     strcpy(file, CommandLineParamsParser::GetInstance()->GetValue("data-file").c_str());
 
-    if(strlen(file) <= 0)
+    if (strlen(file) <= 0)
     {
         strcpy(file, "../resources/fh-data.tsv");
     }
@@ -491,7 +491,7 @@ TEST(FH, DISABLED_multithread_test_with_void_pointer)
     while (getline(DataFile, line))
     {
         line = trim(line);
-        if(line.empty())
+        if (line.empty())
             continue;
 
         char *key = strtok((char *)line.c_str(), "\t");
@@ -526,7 +526,7 @@ TEST(FH, DISABLED_multithread_test_with_void_pointer)
         ind++;
 
         error = fh_enum_move_next(fhe);
-        if(error == FH_BAD_HANDLE)
+        if (error == FH_BAD_HANDLE)
         {
             break;
         }
@@ -548,9 +548,9 @@ TEST(FH, DISABLED_multithread_test_with_void_pointer)
     fh_destroy(fhash);
 
     // Destroy savedata
-    for(int ind = 0; ind < size; ind++)
+    for (int ind = 0; ind < size; ind++)
     {
-        if(savedata[ind].key != NULL)
+        if (savedata[ind].key != NULL)
         {
             free(savedata[ind].key);
         }

@@ -34,7 +34,7 @@ typedef struct _lru_payload_t lru_payload_t;
 
 lru_t *lru_create(int dim)
 {
-    if(dim <= 0)
+    if (dim <= 0)
     {
         return NULL;
     }
@@ -224,13 +224,13 @@ int lru_print(lru_t *lru)
     return 0;
 }
 
-int lru_get_ll_data(lru_t *lru, int idx, char** key, void** payload, void** ll_slot)
+int lru_get_ll_data(lru_t *lru, int idx, char **key, void **payload, void **ll_slot)
 {
-    void* voidp = NULL;
+    void *voidp = NULL;
     LRU_CHECK(lru);
 
     int ll_err = ll_get_payload(lru->ll, idx, &voidp);
-    if(ll_err != LL_OK)
+    if (ll_err != LL_OK)
         return ll_err;
 
     lru_payload_t *p = voidp;
@@ -242,16 +242,16 @@ int lru_get_ll_data(lru_t *lru, int idx, char** key, void** payload, void** ll_s
     return LRU_OK;
 }
 
-int   lru_get_ll_key_position(lru_t *lru, const char* key)
+int   lru_get_ll_key_position(lru_t *lru, const char *key)
 {
-    void* voidp = NULL;
+    void *voidp = NULL;
     LRU_CHECK(lru);
 
     int idx = 0;
-    while(ll_get_payload(lru->ll, idx, &voidp) == LL_OK)
+    while (ll_get_payload(lru->ll, idx, &voidp) == LL_OK)
     {
         lru_payload_t *p = voidp;
-        if(strcmp(key, p->fh_key) == 0)
+        if (strcmp(key, p->fh_key) == 0)
         {
             return idx;
         }
