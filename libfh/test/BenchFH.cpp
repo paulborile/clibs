@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
@@ -12,7 +13,7 @@
 static void generate_random_str(int seed, char *str, int min_len, int max_len);
 unsigned int murmur64a_hash(char *key, int dim);
 
-
+PICOBENCH_SUITE("BenchFH");
 // Benchmarking libfh fh_get() with standard hasfunction - baseline
 static void BenchFHSmallGet(picobench::state &s)
 {
@@ -72,6 +73,49 @@ static void BenchFHSmallGetMurmurHash(picobench::state &s)
 // Register the above function with picobench
 PICOBENCH(BenchFHSmallGetMurmurHash).label("BenchFHSmallGetMurmurHash").samples(10).iterations({10000, 100000, 1000000});
 
+
+PICOBENCH_SUITE("HashFunctions");
+// Benchmarking libfh fh_get() with standard hasfunction - baseline
+static void HashFunctionsMurmurHashX100(picobench::state &s)
+{
+    unsigned int hash;
+    char key[65];
+    int i = 0;
+
+    generate_random_str(i, key, 32, 64);
+
+    for (auto _ : s)
+    {
+        for (i = 0; i<100; i++)
+        {
+            hash += murmur64a_hash(key, 128);
+        }
+    }
+    // just to avoid optimizer removing all code..
+    if (hash == 1)
+    {
+        printf("%d\n", hash);
+    }
+}
+PICOBENCH(HashFunctionsMurmurHashX100).label("HashFunctionsMurmurHashX100").samples(10).iterations({10000, 100000, 1000000});
+
+PICOBENCH_SUITE("GenerateRandomString");
+static void GenerateRandomString(picobench::state &s)
+{
+    char key[65];
+    int i = 0;
+
+    for (auto _ : s)
+    {
+        generate_random_str(i++, key, 32, 64);
+    }
+    // just to avoid optimizer removing all code..
+    if (key[0] == 1)
+    {
+        printf("%s\n", key);
+    }
+}
+PICOBENCH(GenerateRandomString).label("GenerateRandomString").samples(10);
 
 // murmur64a_hash algorithm
 
