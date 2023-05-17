@@ -27,21 +27,8 @@ static unsigned int wyhash_hash(char *key, int dim)
     return h % dim;
 }
 
-static unsigned int fh_default_hash(char *key, int dim)
-{
-    register unsigned int hv = 0; // could put a seed here instead of zero
-    register const unsigned char *s = (unsigned char *)key;
-    while (*s) {
-        hv += *s++;
-        hv += (hv << 10);
-        hv ^= (hv >> 6);
-    }
-    hv += (hv << 3);
-    hv ^= (hv >> 11);
-    hv += (hv << 15);
-
-    return hv & (dim - 1);
-}
+// defined in libfh
+extern unsigned int fh_default_hash(char *key, int dim);
 
 // old hash function (used with prime size table)
 unsigned int fh_default_hash_orig(char *name, int dim)
