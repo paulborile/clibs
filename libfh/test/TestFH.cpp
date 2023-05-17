@@ -54,7 +54,7 @@ void myfree(void *data)
 {
     free_called = true;
 
-    if(data != NULL)
+    if (data != NULL)
     {
         free((dataload *)data);
     }
@@ -69,9 +69,9 @@ void dofree(void *data)
 
     dataobject *tofree = (dataobject *)data;
 
-    if(tofree != NULL)
+    if (tofree != NULL)
     {
-        if(tofree->keyval != NULL)
+        if (tofree->keyval != NULL)
         {
             free(tofree->keyval);
         }
@@ -474,7 +474,7 @@ TEST(FH, hash_with_struct)
     ASSERT_NE((fh_t *)0, fhash);
 
     // Fill it with data
-    for(int index = 0; index < hashsize; index++)
+    for (int index = 0; index < hashsize; index++)
     {
         buffer = (dataload *)malloc(sizeof(dataload));
         buffer->numval = index;
@@ -644,7 +644,7 @@ TEST(FH, get_enumerator_and_list)
     ASSERT_NE((fh_t *)0, fhash);
 
     // Fill it with data
-    for(int index = 0; index < hashsize; index++)
+    for (int index = 0; index < hashsize; index++)
     {
         char *buffer = (char *)malloc(15);
         strcpy(buffer, "Text");
@@ -671,20 +671,20 @@ TEST(FH, get_enumerator_and_list)
         EXPECT_NE((fh_elem_t *)0, element);
         //cout << "Element read: " << element->key << endl;
 
-        if(previous != NULL)
+        if (previous != NULL)
         {
             // Check if sort order is ok
             EXPECT_GT(strcmp(element->key, previous->key), 0);
         }
 
-        if(element != NULL)
+        if (element != NULL)
         {
             previous = element;
             counter++;
         }
 
         error = fh_enum_move_next(fhe);
-        if(error == FH_BAD_HANDLE)
+        if (error == FH_BAD_HANDLE)
         {
             break;
         }
@@ -720,20 +720,20 @@ TEST(FH, get_enumerator_and_list)
         EXPECT_NE((fh_elem_t *)0, element);
         //cout << "Element read: " << element->key << endl;
 
-        if(previous != NULL)
+        if (previous != NULL)
         {
             // Check if sort order is ok
             EXPECT_LT(strcmp(element->key, previous->key), 0);
         }
 
-        if(element != NULL)
+        if (element != NULL)
         {
             previous = element;
             counter++;
         }
 
         error = fh_enum_move_next(fhe);
-        if(error == FH_BAD_HANDLE)
+        if (error == FH_BAD_HANDLE)
         {
             break;
         }
@@ -829,7 +829,7 @@ TEST(FH, hf_struct_clean_test)
     ASSERT_NE((fh_t *)0, fhash);
 
     // Fill it with data
-    for(int index = 0; index < hashsize; index++)
+    for (int index = 0; index < hashsize; index++)
     {
         buffer = (dataload *)malloc(sizeof(dataload));
         buffer->numval = index;
@@ -885,7 +885,7 @@ TEST(FH, hf_void_clean_test)
     ASSERT_NE((fh_t *)0, fhash);
 
     // Fill it with data
-    for(int index = 0; index < hashsize; index++)
+    for (int index = 0; index < hashsize; index++)
     {
         buffer = (dataload *)malloc(sizeof(dataload));
         buffer->numval = index;
@@ -941,7 +941,7 @@ TEST(FH, hf_void_containing_key_clean_test)
     EXPECT_EQ(result, 1);
 
     // Fill it with data
-    for(int index = 0; index < hashsize; index++)
+    for (int index = 0; index < hashsize; index++)
     {
         buffer = (dataobject *)malloc(sizeof(dataobject));
         buffer->keyval = (char *)malloc(10);

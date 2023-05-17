@@ -77,12 +77,10 @@ inline void timing_start(void *t)
 inline double timing_end(void *t)
 {
     struct timing_data *tt = (struct timing_data *) t;
-    double tstart, tend;
 #ifdef __linux__
     if ( tt->nano)
     {
         clock_gettime(CLOCK_MONOTONIC, &(tt->nano_end));
-        tstart = ((tt->nano_start.tv_sec * 1000000000) + tt->nano_start.tv_nsec);
         return (((tt->nano_end.tv_sec * 1000000000) + tt->nano_end.tv_nsec) - ((tt->nano_start.tv_sec * 1000000000) + tt->nano_start.tv_nsec));
     }
     else

@@ -1,10 +1,14 @@
+
+#define PICOBENCH_IMPLEMENT
+#include <picobench/picobench.hpp>
 #include <gtest/gtest.h>
 #include <fstream>
 using namespace std;
 
 #include "CommandLineParams.h"
 
-int main(int argc, char* argv[])
+
+int main(int argc, char *argv[])
 {
     cout << "Running main() in file c-libraries/libfh/test/TestMain.cpp" << endl;
     cout << "Now running test executable: " << argv[0] << endl;
@@ -36,5 +40,13 @@ int main(int argc, char* argv[])
 //    }
 
     int testResult = ::testing::UnitTest::GetInstance()->Run();
+
+    // For picobench
+
+    picobench::runner r;
+    // Optionally parse command line
+    r.parse_cmd_line(argc, argv);
+    r.run();
+
     return testResult;
 }

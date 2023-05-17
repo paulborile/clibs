@@ -25,7 +25,7 @@
 // exposes the node element and holds a key and a payload data. key is not used
 // in ll
 
-ll_t    *ll_create(int dim, int payload_size)
+ll_t *ll_create(int dim, int payload_size)
 {
     ll_t *ll = NULL;
     // allocate ll_t
@@ -401,7 +401,7 @@ int ll_destroy(ll_t *ll)
 }
 
 // slow! test only! idx == 0 is the most recently used.
-int ll_get_payload(ll_t *ll, int idx, void** payload)
+int ll_get_payload(ll_t *ll, int idx, void **payload)
 {
 
     // printf("payload: %x\n", payload);
@@ -431,7 +431,7 @@ int ll_get_payload(ll_t *ll, int idx, void** payload)
         i++;
     }
 
-    if(l == NULL)
+    if (l == NULL)
     {
         return LL_ERROR_INDEX_OUT_OF_RANGE;
     }
@@ -461,7 +461,7 @@ void ll_print(ll_t *ll, int (*payload_print)(void *))
     while (l != NULL)
     {
         printf("[%p] : next %p, prev %p\n", l, l->next, l->prev);
-        printf("[%p] : payload : ",l); payload_print(l->payload);
+        printf("[%p] : payload : ", l); payload_print(l->payload);
         l = l->next;
         i++;
         if (i>50)

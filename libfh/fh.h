@@ -125,6 +125,8 @@ int fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque, int o
 // experimental
 void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error);
 int fh_releaselock(fh_t *fh, int slot);
+unsigned int fh_default_hash(char *key, int dim);
+
 
 struct _fh_elem_t {
     char *key;

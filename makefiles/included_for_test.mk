@@ -12,9 +12,9 @@ OBJ = $(SRC:.cpp=.o)
 ROBJ = $(SRC:.cpp=.ro)
 
 CXXFLAGS = -std=c++11 -pthread -fpermissive -isystem ../../googletest/include -isystem ../../googletest -DDEBUG \
--g3 $(SANITIZE) -I.. -I ../../libutil/src $(LOCAL_CXXFLAGS)
+-isystem ../../picobench/include/ -g3 $(SANITIZE) -I.. -I ../../libutil/src $(LOCAL_CXXFLAGS)
 CXXFLAGS_RELEASE = -std=c++11 -pthread -fpermissive -isystem ../../googletest/include -isystem ../../googletest \
--O3 -I.. -I ../../libutil/src $(LOCAL_CXXFLAGS)
+-isystem ../../picobench/include/ -O3 -I.. -I ../../libutil/src $(LOCAL_CXXFLAGS)
 
 # debug productions
 
