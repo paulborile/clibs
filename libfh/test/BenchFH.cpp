@@ -12,6 +12,11 @@
 
 static void generate_random_str(int seed, char *str, int min_len, int max_len);
 unsigned int murmur64a_hash(char *key, int dim);
+/*
+ * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
+ */
+unsigned int fh_default_hash(char *key, int dim);
+
 
 PICOBENCH_SUITE("BenchFH");
 // Benchmarking libfh fh_get() with standard hasfunction - baseline
@@ -44,7 +49,7 @@ static void BenchFHSmallGet(picobench::state &s)
 // Register the above function with picobench
 PICOBENCH(BenchFHSmallGet).label("BenchFHSmallGet").samples(10).iterations({10000, 100000, 1000000});
 
-// Benchmarking libfh fh_get() with standard hasfunction - baseline
+// Benchmarking libfh fh_get() with murmur64a_hash - baseline
 static void BenchFHSmallGetMurmurHash(picobench::state &s)
 {
     fh_t *fh = NULL;
@@ -73,10 +78,33 @@ static void BenchFHSmallGetMurmurHash(picobench::state &s)
 // Register the above function with picobench
 PICOBENCH(BenchFHSmallGetMurmurHash).label("BenchFHSmallGetMurmurHash").samples(10).iterations({10000, 100000, 1000000});
 
-
 PICOBENCH_SUITE("HashFunctions");
-// Benchmarking libfh fh_get() with standard hasfunction - baseline
-static void HashFunctionsMurmurHashX100(picobench::state &s)
+// Benchmarking standard hash function - baseline
+static void HashFunctionsDefaultX100(picobench::state &s)
+{
+    unsigned int hash;
+    char key[65];
+    int i = 0;
+
+    generate_random_str(i, key, 32, 64);
+
+    for (auto _ : s)
+    {
+        for (i = 0; i<100; i++)
+        {
+            hash += fh_default_hash(key, 128);
+        }
+    }
+    // just to avoid optimizer removing all code..
+    if (hash == 1)
+    {
+        printf("%d\n", hash);
+    }
+}
+PICOBENCH(HashFunctionsDefaultX100).label("HashFunctionsDefaultX100").samples(10).iterations({1000, 10000, 100000});
+
+// Benchmarking murmurhash hash function - baseline
+static void HashFunctionsMurmurX100(picobench::state &s)
 {
     unsigned int hash;
     char key[65];
@@ -97,7 +125,7 @@ static void HashFunctionsMurmurHashX100(picobench::state &s)
         printf("%d\n", hash);
     }
 }
-PICOBENCH(HashFunctionsMurmurHashX100).label("HashFunctionsMurmurHashX100").samples(10).iterations({10000, 100000, 1000000});
+PICOBENCH(HashFunctionsMurmurX100).label("HashFunctionsMurmurX100").samples(10).iterations({1000, 10000, 100000});
 
 PICOBENCH_SUITE("GenerateRandomString");
 static void GenerateRandomString(picobench::state &s)
