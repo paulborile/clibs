@@ -6,7 +6,7 @@
  */
 
 // WARNING!!!! Needed to use strdup in this code. Without it, it's not defined
-#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -16,6 +16,9 @@
 #include <assert.h>
 
 #include    "fh.h"
+
+// version
+static char version[] = "0.8.1";
 
 #define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE)
 #define FH_KEY_CHECK(key) if (!key) return (FH_INVALID_KEY)
@@ -230,6 +233,22 @@ int fh_getattr(fh_t *fh, int attr, int *value)
         break;
     case FH_ATTR_COLLISION:
         (*value) = fh->h_collision;
+        break;
+    default:
+        return(FH_BAD_ATTR);
+    }
+    return (FH_OK);
+}
+
+// get string type attributes
+int fh_getattr_string(fh_t *fh, int attr, char **value)
+{
+    FH_CHECK(fh);
+
+    switch (attr)
+    {
+    case FH_ATTR_VERSION:
+        *value = version;
         break;
     default:
         return(FH_BAD_ATTR);
