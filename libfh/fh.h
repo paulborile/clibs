@@ -53,7 +53,9 @@ extern "C" {
 #define FH_ATTR_ELEMENT     100 // getattr elements in hash
 #define FH_ATTR_DIM         101 // getattr real dim of hashtable
 #define FH_ATTR_COLLISION   102 // getattr collisions in insert
-// attributes to set
+#define FH_ATTR_VERSION     103 // getattr return library version
+
+// attributes to set in h_attr bitwise
 #define FH_SETATTR_DONTCOPYKEY  1 // for setattr : do not allocate and copy key
 
 // datalen values
@@ -107,6 +109,7 @@ typedef struct _fh_t fh_t;
 fh_t *fh_create( int dim, int opaque_len, fh_hash_fun custom_hash);
 int fh_setattr(fh_t *fh, int attr, int value);
 int fh_getattr(fh_t *fh, int attr, int *value);
+int fh_getattr_string(fh_t *fh, int attr, char **value);
 int fh_destroy(fh_t *fh );
 // inserts opaque pointed data allocating/copying it inside hastable
 int fh_insert(fh_t *fh, char *key, void *opaque);
