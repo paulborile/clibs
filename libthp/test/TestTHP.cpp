@@ -61,7 +61,7 @@ TEST(THP, ThreadRunWithParam)
     EXPECT_NE(0, t);
 
     counter = 0;
-    for (int i = 1; i <=max; i++)
+    for (long i = 1; i <=max; i++)
     {
         thp_add(t, adder, (void *)i);
     }
