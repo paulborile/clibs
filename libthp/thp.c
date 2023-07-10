@@ -41,9 +41,10 @@ static void _thp_unlock(thp_h *thp)
 static thp_job_t *_thp_job_create(thp_fun fun_p, void *arg)
 {
     thp_job_t *tj = malloc(sizeof(thp_job_t));
-	if ( tj == NULL ) {
-		return NULL;
-	}
+    if ( tj == NULL )
+    {
+        return NULL;
+    }
     tj->fun = fun_p;
     tj->fun_param = arg;
     return tj;
@@ -126,9 +127,10 @@ int thp_add(thp_h *thp, thp_fun fun_p, void *arg)
     // create thp_job
     thp_job_t *tj = _thp_job_create(fun_p, arg);
 
-	if ( tj == NULL ) {
-		return THP_NO_MEMORY;
-	}
+    if ( tj == NULL )
+    {
+        return THP_NO_MEMORY;
+    }
     // enque it
 
     _thp_lock(thp);
