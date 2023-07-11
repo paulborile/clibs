@@ -19,7 +19,7 @@
 #include    "fh.h"
 
 // version
-static char version[] = "0.8.1";
+static char version[] = "0.9.0";
 
 #define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE)
 #define FH_KEY_CHECK(key) if (!key) return (FH_INVALID_KEY)
