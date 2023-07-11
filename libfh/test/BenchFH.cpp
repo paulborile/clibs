@@ -11,7 +11,7 @@
 #include "fh.h"
 
 static void generate_random_str(int seed, char *str, int min_len, int max_len);
-unsigned int murmur64a_hash(char *key, int dim);
+uint64_t    murmur64a_hash(char *key);
 /*
  * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
  */
@@ -92,7 +92,7 @@ static void HashFunctionsDefaultX100(picobench::state &s)
     {
         for (i = 0; i<100; i++)
         {
-            hash += fh_default_hash(key, 128);
+            hash += fh_default_hash(key) & 127;
         }
     }
     // just to avoid optimizer removing all code..
@@ -116,7 +116,7 @@ static void HashFunctionsMurmurX100(picobench::state &s)
     {
         for (i = 0; i<100; i++)
         {
-            hash += murmur64a_hash(key, 128);
+            hash += murmur64a_hash(key) & 127;
         }
     }
     // just to avoid optimizer removing all code..
@@ -149,7 +149,7 @@ PICOBENCH(GenerateRandomString).label("GenerateRandomString").samples(10);
 
 #define BIG_CONSTANT(x) (x ## LLU)
 
-unsigned int murmur64a_hash(char *key, int dim)
+uint64_t    murmur64a_hash(char *key)
 {
     const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
     const int r = 47;
@@ -201,7 +201,7 @@ unsigned int murmur64a_hash(char *key, int dim)
     h *= m;
     h ^= h >> r;
 
-    return h & (dim - 1);
+    return h;
 }
 
 
