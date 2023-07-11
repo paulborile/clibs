@@ -84,9 +84,9 @@ void dofree(void *data)
 
 // worst hash function of the history
 // just to check if it works, all inserts will result in collisions
-unsigned int custom_hash(char *key, int dim)
+uint64_t    custom_hash(char *key)
 {
-    return dim/2;
+    return 42;
 }
 
 TEST(FH, CustomHashFunction)

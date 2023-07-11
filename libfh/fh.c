@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -28,7 +29,7 @@ static char version[] = "0.8.1";
  * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
  */
 
-unsigned int fh_default_hash(char *key, int dim)
+uint64_t fh_default_hash(char *key)
 {
     register unsigned int hv = 0; // could put a seed here instead of zero
     register const unsigned char *s = (unsigned char *)key;
@@ -41,7 +42,7 @@ unsigned int fh_default_hash(char *key, int dim)
     hv ^= (hv >> 11);
     hv += (hv << 15);
 
-    return hv & (dim - 1);
+    return hv;
 }
 
 // makes sure the real size of the buckets array is a power of 2
@@ -334,7 +335,7 @@ int fh_destroy(fh_t *fh)
 // allocates a newone and incremets h_collision
 int fh_insert(fh_t *fh, char *key, void *block)
 {
-    int i;
+    uint64_t i;
     fh_slot *h_slot, *new_h_slot = NULL;
     void *new_opaque_obj = NULL;
     FH_CHECK(fh);
@@ -342,10 +343,11 @@ int fh_insert(fh_t *fh, char *key, void *block)
 
     // looking for slot
 
-    i = fh->hash_function(key, fh->h_dim);
+    i = fh->hash_function(key) & (fh->h_dim -1);
+
     _fh_lock(fh, i);
 
-    assert(i<fh->h_dim);
+    assert(i<(uint64_t)fh->h_dim);
 
     h_slot = fh->hash_table[i].h_slot;
 
@@ -444,13 +446,13 @@ static int _fh_del(fh_t *fh, char *key, int i);
 // fh_del - remove item from hash and free memory
 int fh_del(fh_t *fh, char *key)
 {
-    int i;
+    uint64_t i;
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
 
     // looking for slot
 
-    i = fh->hash_function(key, fh->h_dim);
+    i = fh->hash_function(key) & (fh->h_dim -1);
     _fh_lock(fh, i);
     int rc = _fh_del(fh, key, i);
     _fh_unlock(fh, i);
@@ -539,7 +541,7 @@ static int _fh_del(fh_t *fh, char *key, int i)
 // should not be called with datalen = FH_DATALEN_VOIDP (no way to return data)
 int fh_search(fh_t *fh, char *key, void *block, int block_size)
 {
-    int i;
+    uint64_t i;
     register fh_slot *h_slot;
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
@@ -553,10 +555,10 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     }
 
 
-    i = fh->hash_function(key, fh->h_dim);
+    i = fh->hash_function(key) & (fh->h_dim -1);
     _fh_lock(fh, i);
 
-    assert(i<fh->h_dim);
+    assert(i<(uint64_t)fh->h_dim);
 
     h_slot = fh->hash_table[i].h_slot;
 
@@ -609,14 +611,14 @@ void *fh_get(fh_t *fh, char *key, int *error)
         return NULL;
     }
 
-    int i;
+    uint64_t i;
     register fh_slot *h_slot;
     void *opaque = NULL;
 
-    i = fh->hash_function(key, fh->h_dim);
+    i = fh->hash_function(key) & (fh->h_dim -1);
     _fh_lock(fh, i);
 
-    assert(i<fh->h_dim);
+    assert(i<(uint64_t)fh->h_dim);
 
     h_slot = fh->hash_table[i].h_slot;
 
@@ -642,7 +644,7 @@ void *fh_get(fh_t *fh, char *key, int *error)
 // allows modifying an opaque object entry without del/insert
 void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
 {
-    int i;
+    uint64_t i;
     register fh_slot *h_slot;
 
     if (!fh || fh->h_magic != FH_MAGIC_ID)
@@ -657,10 +659,10 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
         return NULL;
     }
 
-    i = fh->hash_function(key, fh->h_dim);
+    i = fh->hash_function(key) & (fh->h_dim -1);
     _fh_lock(fh, i);
 
-    assert(i<fh->h_dim);
+    assert(i<(uint64_t)fh->h_dim);
 
     h_slot = fh->hash_table[i].h_slot;
 

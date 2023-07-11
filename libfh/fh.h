@@ -84,7 +84,7 @@ struct _f_hash {
     fh_slot *h_slot;
 };
 typedef struct _f_hash f_hash;
-typedef unsigned int (*fh_hash_fun)(char *key, int dim);
+typedef uint64_t (*fh_hash_fun)(char *key);
 
 // fh object
 struct _fh_t {
@@ -128,7 +128,7 @@ int fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque, int o
 // experimental
 void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error);
 int fh_releaselock(fh_t *fh, int slot);
-unsigned int fh_default_hash(char *key, int dim);
+uint64_t fh_default_hash(char *key);
 
 
 struct _fh_elem_t {
@@ -163,9 +163,9 @@ int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func));
 
 // some hash functions provided
 // jsw_hash behaves good with strings
-unsigned int jsw_hash(char *, int);
+uint64_t jsw_hash(char *);
 // low collisions
-unsigned int jen_hash(char *, int);
+uint64_t jen_hash(char *);
 
 #ifdef __cplusplus
 }
