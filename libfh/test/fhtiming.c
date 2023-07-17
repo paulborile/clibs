@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <time.h>
 #include <pthread.h>
 
@@ -21,19 +22,19 @@ void wyhash_hash_init()
     make_secret(time(NULL), seed);
 }
 
-static unsigned int wyhash_hash(char *key, int dim)
+static uint64_t wyhash_hash(char *key)
 {
     uint64_t h = wyhash(key, strlen(key), 0, _wyp);
-    return h % dim;
+    return h;
 }
 
 // defined in libfh
-extern unsigned int fh_default_hash(char *key, int dim);
+extern uint64_t fh_default_hash(char *key);
 
 // old hash function (used with prime size table)
-unsigned int fh_default_hash_orig(char *name, int dim)
+uint64_t fh_default_hash_orig(char *name)
 {
-    unsigned long h = 0, g;
+    uint64_t h = 0, g;
     while (*name)
     {
         h = (h << 4) + *name++;
@@ -42,14 +43,14 @@ unsigned int fh_default_hash_orig(char *name, int dim)
             h ^= g >> 24;
         h &= ~g;
     }
-    return h % dim;
+    return h;
 }
 
 // bernstein hash : fastest 71 micro
-unsigned int djb_hash(char *key, int dim)
+uint64_t djb_hash(char *key)
 {
     char *p = key;
-    unsigned long h = 0;
+    uint64_t h = 0;
     int i;
 
     for (i = 0; p[i] != 0; i++)
@@ -58,14 +59,14 @@ unsigned int djb_hash(char *key, int dim)
         //h = 33 * h ^ p[i];
     }
 
-    return h & (dim - 1);
+    return h;
 }
 
 // Shift-Add-XOR hash : slow as default
-unsigned int sax_hash(char *key, int dim)
+uint64_t sax_hash(char *key)
 {
     char *p = key;
-    unsigned long h = 0;
+    uint64_t h = 0;
     int i;
 
     for (i = 0; p[i] != 0; i++)
@@ -73,7 +74,7 @@ unsigned int sax_hash(char *key, int dim)
         h ^= (h << 5) + (h >> 2) + p[i];
     }
 
-    return h & (dim - 1);
+    return h;
 }
 
 static unsigned int jsw_tab[256] = {
@@ -110,9 +111,9 @@ static unsigned int jsw_tab[256] = {
     1088823125, 774689239, 2094327579, 904426542, 1277584415, 40549311, 1704978159, 754522520,
     1470178162, 1218715295, 1473694704, 827755998, 980267865, 748328527, 115557889, 1507477458
 };
-unsigned jsw_hash(char *key, int dim)
+uint64_t jsw_hash(char *key)
 {
-    unsigned h = 16777551;
+    uint64_t h = 16777551;
     int i;
 
     for (i = 0; key[i] != 0; i++)
@@ -120,12 +121,12 @@ unsigned jsw_hash(char *key, int dim)
         h = (h << 1 | h >> 31) ^ jsw_tab[(int)key[i]];
     }
 
-    return h & (dim - 1);
+    return h;
 }
 
 // psb_hash : a variant of jsw
 
-unsigned psb_hash(char *key, int dim)
+uint64_t psb_hash(char *key)
 {
     size_t i;
     size_t len = strlen(key);
@@ -133,7 +134,7 @@ unsigned psb_hash(char *key, int dim)
     // use standard jsw_hash
     if ( len < sizeof(int))
     {
-        unsigned h = 16777551;
+        uint64_t h = 16777551;
         int i;
 
         for (i = 0; key[i] != 0; i++)
@@ -141,12 +142,12 @@ unsigned psb_hash(char *key, int dim)
             h = (h << 1 | h >> 31) ^ jsw_tab[(int)key[i]];
         }
 
-        return h & (dim - 1);
+        return h;
     }
 
     // unsigned int h = 5381;
-    unsigned int h = 4294967295;
-    unsigned int *kh = (unsigned int *) key;
+    uint64_t h = 4294967295;
+    uint64_t *kh = (uint64_t *) key;
 
     for (i = 0; i<(len - sizeof(int)); i+=sizeof(int))
     {
@@ -158,26 +159,26 @@ unsigned psb_hash(char *key, int dim)
 
     }
 
-    return h & (dim - 1);
+    return h;
 }
 
 /* simple: compute hash value of string */
-unsigned simple_hash(char *key, int dim)
+uint64_t simple_hash(char *key)
 {
-    unsigned int h;
+    uint64_t h;
     unsigned char *p;
 
     h = 0;
     for (p = (unsigned char *)key; *p != '\0'; p++)
         h = 37 * h + *p;
-    return h & (dim - 1);
+    return h;
 }
 
 
-unsigned elf_hash(char *key, int dim)
+uint64_t elf_hash(char *key)
 {
     char *p = key;
-    unsigned h = 0, g;
+    uint64_t h = 0, g;
     int i;
 
     for (i = 0; key[i] != 0; i++)
@@ -193,7 +194,7 @@ unsigned elf_hash(char *key, int dim)
         h &= ~g;
     }
 
-    return h & (dim - 1);
+    return h;
 }
 
 
@@ -214,20 +215,20 @@ unsigned elf_hash(char *key, int dim)
         c -= a; c -= b; c ^= (b >> 15); \
     }
 
-unsigned jen_hash(char *k, int dim)
+uint64_t jen_hash(char *k)
 {
-    unsigned a, b;
-    unsigned c = 9787;
-    unsigned len = strlen(k);
+    uint64_t a, b;
+    uint64_t c = 9787;
+    uint64_t len = strlen(k);
     int length = len;
 
     a = b = 0x9e3779b9;
 
     while (len >= 12)
     {
-        a += (k[0] + ((unsigned)k[1] << 8) + ((unsigned)k[2] << 16) + ((unsigned)k[3] << 24));
-        b += (k[4] + ((unsigned)k[5] << 8) + ((unsigned)k[6] << 16) + ((unsigned)k[7] << 24));
-        c += (k[8] + ((unsigned)k[9] << 8) + ((unsigned)k[10] << 16) + ((unsigned)k[11] << 24));
+        a += (k[0] + ((uint64_t)k[1] << 8) + ((uint64_t)k[2] << 16) + ((uint64_t)k[3] << 24));
+        b += (k[4] + ((uint64_t)k[5] << 8) + ((uint64_t)k[6] << 16) + ((uint64_t)k[7] << 24));
+        c += (k[8] + ((uint64_t)k[9] << 8) + ((uint64_t)k[10] << 16) + ((uint64_t)k[11] << 24));
 
         mix(a, b, c);
 
@@ -242,17 +243,17 @@ unsigned jen_hash(char *k, int dim)
 
     switch (len)
     {
-    case 11: c += ((unsigned)k[10] << 24);
-    case 10: c += ((unsigned)k[9] << 16);
-    case 9: c += ((unsigned)k[8] << 8);
+    case 11: c += ((uint64_t)k[10] << 24);
+    case 10: c += ((uint64_t)k[9] << 16);
+    case 9: c += ((uint64_t)k[8] << 8);
     /* First byte of c reserved for length */
-    case 8: b += ((unsigned)k[7] << 24);
-    case 7: b += ((unsigned)k[6] << 16);
-    case 6: b += ((unsigned)k[5] << 8);
+    case 8: b += ((uint64_t)k[7] << 24);
+    case 7: b += ((uint64_t)k[6] << 16);
+    case 6: b += ((uint64_t)k[5] << 8);
     case 5: b += k[4];
-    case 4: a += ((unsigned)k[3] << 24);
-    case 3: a += ((unsigned)k[2] << 16);
-    case 2: a += ((unsigned)k[1] << 8);
+    case 4: a += ((uint64_t)k[3] << 24);
+    case 3: a += ((uint64_t)k[2] << 16);
+    case 2: a += ((uint64_t)k[1] << 8);
     case 1: a += k[0];
     }
 
@@ -260,35 +261,35 @@ unsigned jen_hash(char *k, int dim)
 
     mix(a, b, c);
 
-    return c & (dim - 1);
+    return c;
 }
 //////////////////
 
-unsigned djb2_hash(char *key, int dim)
+uint64_t djb2_hash(char *key)
 {
-    unsigned hash = 5381;
+    uint64_t hash = 5381;
     int c;
 
     while ((c = *key++))
         hash = ((hash << 5) + hash) + c;  /* hash * 33 + c */
 
-    return hash & (dim - 1);
+    return hash;
 }
 
-unsigned sdbm_hash(char *key, int dim)
+uint64_t sdbm_hash(char *key)
 {
-    unsigned hash = 0;
+    uint64_t hash = 0;
     int c;
 
     while ((c = *key++))
         hash = c + (hash << 6) + (hash << 16) - hash;
 
-    return hash & (dim - 1);
+    return hash;
 }
 
-unsigned fnv_hash(char *key, int dim)
+uint64_t fnv_hash(char *key)
 {
-    unsigned h = 2166136261;
+    uint64_t h = 2166136261;
     int i;
 
     for (i = 0; key[i] != 0; i++)
@@ -296,12 +297,12 @@ unsigned fnv_hash(char *key, int dim)
         h = (h * 16777619) ^ key[i];
     }
 
-    return h & (dim - 1);
+    return h;
 }
 
-unsigned oat_hash(char *key, int dim)
+uint64_t oat_hash(char *key)
 {
-    unsigned h = 0;
+    uint64_t h = 0;
     int i;
 
     for (i = 0; key[i] != 0; i++)
@@ -315,7 +316,7 @@ unsigned oat_hash(char *key, int dim)
     h ^= (h >> 11);
     h += (h << 15);
 
-    return h & (dim - 1);
+    return h;
 }
 
 // crc32 hash
@@ -390,21 +391,21 @@ static const unsigned int crc32_table[] =
 
 #include <stdint.h>
 
-unsigned crc32_hash(char *buf, int dim)
+uint64_t crc32_hash(char *buf)
 {
-    uint32_t h = 0;
+    uint64_t h = 0;
     for (int i=0; buf[i] != 0; i++)
     {
         h = (h << 8) ^ crc32_table[((h >> 24) ^ buf[i]) & 255];
     }
-    return h & (dim - 1);
+    return h;
 }
 
 
 
 #define BIG_CONSTANT(x) (x ## LLU)
 
-unsigned int murmur64a_hash(char *key, int dim)
+uint64_t murmur64a_hash(char *key)
 {
     const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
     const int r = 47;
@@ -456,14 +457,14 @@ unsigned int murmur64a_hash(char *key, int dim)
     h *= m;
     h ^= h >> r;
 
-    return h & (dim - 1);
+    return h;
 }
 
 
 struct hash_fun
 {
     char hash_fun_name[64];
-    unsigned int (*hash_fun)(char *key, int dim);
+    uint64_t (*hash_fun)(char *key);
     double hash_dim_factor;
 };
 
@@ -627,7 +628,7 @@ int main( int argc, char **argv )
                 generate_random_str(1000+l, keys, 100, 350);
 
                 timing_start(t);
-                int hashval = hash_funs[i].hash_fun(keys, real_hash_size);
+                int hashval = hash_funs[i].hash_fun(keys) & (real_hash_size-1);
                 delta = timing_end(t);
                 hash_calc_time = compute_average(hash_calc_time, l, delta);
                 if (coll[hashval] != 0 )
@@ -670,7 +671,7 @@ int main( int argc, char **argv )
                 generate_random_str(1000+l, keys, 10, 45);
                 // check if ua present in cache
                 timing_start(t);
-                int hashval = hash_funs[i].hash_fun(keys, real_hash_size);
+                int hashval = hash_funs[i].hash_fun(keys) & (real_hash_size-1);
                 delta = timing_end(t);
                 hash_calc_time = compute_average(hash_calc_time, l, delta);
                 if (coll[hashval] != 0 )
