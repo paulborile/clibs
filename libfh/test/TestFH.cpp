@@ -298,7 +298,7 @@ TEST(FH, error_conditions)
     // Add an element with empty key
     result = 0;
     result = fh_insert(fhash, (char *)empty.c_str(), (void *)uno.c_str());
-    EXPECT_EQ(result, 0);
+    EXPECT_EQ(result, 25);
 
     // Add an element with null value
     result = 0;
@@ -453,7 +453,7 @@ TEST(FH, test_attr_methods)
     attribute = 0;
     result = fh_getattr(fhash, FH_ATTR_COLLISION, &attribute);
     EXPECT_EQ(result, 1);
-    EXPECT_EQ(attribute, 2);
+    EXPECT_EQ(attribute, 3);
 
     // Destroy hash table
     fh_destroy(fhash);

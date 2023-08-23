@@ -101,6 +101,7 @@ struct _fh_t {
     pthread_mutex_t *h_lock;
     int n_lock;
     f_hash *hash_table;
+    uint64_t seed[4]; // wyhash seed
 };
 typedef struct _fh_t fh_t;
 
@@ -115,8 +116,6 @@ int fh_destroy(fh_t *fh );
 int fh_insert(fh_t *fh, char *key, void *opaque);
 // remove entry, free data
 int fh_del(fh_t *fh, char *key );
-// fh_dellocked - remove item from locked hash slot
-int fh_dellocked(fh_t *fh, char *key, int locked_slot);
 // search and copy out data
 int fh_search(fh_t *fh, char *key, void *opaque, int opaque_size);
 // search and return pointer to internal allocated data
@@ -127,7 +126,10 @@ int fh_scan_start(fh_t *fh, int pos, void **slot);
 int fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque, int opaque_size);
 // experimental
 void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error);
+// fh_dellocked - remove item from locked hash slot
+int fh_dellocked(fh_t *fh, char *key, int locked_slot);
 int fh_releaselock(fh_t *fh, int slot);
+
 uint64_t fh_default_hash(char *key);
 
 

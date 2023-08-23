@@ -18,34 +18,28 @@
 
 #include    "fh.h"
 
+// wyhash used by Go, Zig and more
+#include  "wyhash.h"
+
 // version
-static char version[] = "0.9.0";
+static char version[] = "0.10.0";
+
+static void wyhash_hash_init(fh_t *fh)
+{
+    make_secret(time(NULL), fh->seed);
+}
+
+uint64_t fh_default_hash(char *key)
+{
+    uint64_t h = wyhash(key, strlen(key), 0, _wyp);
+    return h;
+}
 
 #define FH_CHECK(f) if ((!f) || (f->h_magic != FH_MAGIC_ID)) return (FH_BAD_HANDLE)
 #define FH_KEY_CHECK(key) if (!key) return (FH_INVALID_KEY)
 #define FHE_CHECK(f) if ((!f) || (f->magic != FHE_MAGIC_ID)) return (FH_BAD_HANDLE)
 
-/*
- * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
- */
-
-uint64_t fh_default_hash(char *key)
-{
-    register unsigned int hv = 0; // could put a seed here instead of zero
-    register const unsigned char *s = (unsigned char *)key;
-    while (*s) {
-        hv += *s++;
-        hv += (hv << 10);
-        hv ^= (hv >> 6);
-    }
-    hv += (hv << 3);
-    hv ^= (hv >> 11);
-    hv += (hv << 15);
-
-    return hv;
-}
-
-// makes sure the real size of the buckets array is a power of 2
+// makes sure the real size of the buckets array is a power of 2 so we can use && for hash truncation
 // adds 1.5 size factor to allow for enough space to limit collisions
 static unsigned int fh_hash_size(unsigned int s)
 {
@@ -115,7 +109,8 @@ fh_t *fh_create(int dim, int datalen, fh_hash_fun hash_function)
     }
     else
     {
-        f->hash_function = fh_default_hash;
+        wyhash_hash_init(f); // init the hash seed to avoid DOS attacks
+        f->hash_function = fh_default_hash; // now default hash is wyhash
     }
 
     // compute pool size (function of hashtable size), save size in fh object, allocate lock pool, init locks

@@ -245,7 +245,7 @@ void *insert_only(void *param)
 
     for (int index = 0; index < numloop; index++)
     {
-        char key[9];
+        char key[16];
         sprintf(key, "%08d", 100000 + index);
         char *value = (char *)malloc(100);
         strcpy(value, "Record number ");
