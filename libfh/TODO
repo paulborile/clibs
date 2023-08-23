@@ -1,0 +1,6 @@
+TODO - ideas and improvements
+
+- use golang wyhash as default hash function (faster than murmurhash64) - DONE, 0.10.0
+- use wyshash seeding to avoid dos attachs on hashkey - DONE, 0.10.0
+- implement buckets : each hashslot holds 8 keys (golang map)
+- implement auto size/resize of hashtable when load factor goes over 65%. Ideas from golang map where copying of the slice of hash buckets is done incrementally (inserts go to new bucket, lazy move of object from old to new buckets slice. No need to give expected size of hashtable at fh_create() time.
