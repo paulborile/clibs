@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0 Aug 2023
+
+- adopted wyhash (Go, Zig..) as the default hashfun
+- added seeding to avoid DOS exploits
+- added benchmarks for fh_get of 1 million keys
+
 ## 0.9.0 July 2023
 
 - changed signature of hashfun (removed the hashtable size so that the hasfun just returns 

@@ -27,7 +27,6 @@ static void BenchFHSmallGet(picobench::state &s)
     char key[65];
 
     // Create hash table of strings with default hash function
-    // oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
     fh = fh_create(200, FH_DATALEN_STRING, NULL);
 
     for (int i = 0; i<200; i++ )
@@ -222,3 +221,99 @@ static void generate_random_str(int seed, char *str, int min_len, int max_len)
     // printf("%s\n", str);
     return;
 }
+
+
+PICOBENCH_SUITE("BigHash");
+// Benchmarking libfh fh_get() with standard hasfunction - baseline
+static void BenchFHBigHashGet(picobench::state &s)
+{
+    fh_t *fh = NULL;
+    int err = 0;
+    char key[65];
+    int num_strings = 1000000; // simulating 1 million random keys
+    char *keys[num_strings];
+
+
+    // Create hash table of strings with default hash function
+    fh = fh_create(num_strings, FH_DATALEN_STRING, NULL);
+
+    // populate string array and insert in hash
+
+    printf("starting load of hash 1m entries\n");
+
+    for (int i = 0; i<num_strings; i++ )
+    {
+        generate_random_str(i, key, 32, 64);
+        keys[i] = strdup(key);
+        fh_insert(fh, keys[i], (void *)"payload");
+    }
+
+    printf("starting benchmark\n");
+
+    int j = 0;
+
+    for (auto _ : s)
+    {
+        if ( j == num_strings )
+            j == 0;
+        fh_get(fh, keys[j++], &err);
+    }
+
+    printf("starting cleanup\n");
+
+    fh_destroy(fh);
+    for (int i = 0; i<num_strings; i++ )
+    {
+        free(keys[i]);
+    }
+
+}
+// Register the above function with picobench
+PICOBENCH(BenchFHBigHashGet).label("BenchFHBigHashGet").iterations({1000, 10000, 100000});
+
+// Benchmarking libfh fh_get() with murmur hash
+static void BenchFHBigHashGetMurmur(picobench::state &s)
+{
+    fh_t *fh = NULL;
+    int err = 0;
+    char key[65];
+    int num_strings = 1000000; // simulating 1 million random keys
+    char *keys[num_strings];
+
+
+    // Create hash table of strings with default hash function
+    fh = fh_create(num_strings, FH_DATALEN_STRING, murmur64a_hash);
+
+    // populate string array and insert in hash
+
+    printf("starting load of hash 1m entries\n");
+
+    for (int i = 0; i<num_strings; i++ )
+    {
+        generate_random_str(i, key, 32, 64);
+        keys[i] = strdup(key);
+        fh_insert(fh, keys[i], (void *)"payload");
+    }
+
+    printf("starting benchmark\n");
+
+    int j = 0;
+
+    for (auto _ : s)
+    {
+        if ( j == num_strings )
+            j == 0;
+        fh_get(fh, keys[j++], &err);
+    }
+
+    printf("starting cleanup\n");
+
+    fh_destroy(fh);
+    for (int i = 0; i<num_strings; i++ )
+    {
+        free(keys[i]);
+    }
+
+}
+// Register the above function with picobench
+PICOBENCH(BenchFHBigHashGetMurmur).label("BenchFHBigHashGetMurmur").iterations({1000, 10000, 100000});
