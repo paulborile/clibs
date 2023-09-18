@@ -480,16 +480,16 @@ struct hash_fun hash_funs[] = {
     // { "fh_default_hash_orig", fh_default_hash_orig, 2.5 },
 
     // { "djb_hash", djb_hash, 1.0 },
-    { "djb_hash", djb_hash, 1.5 },
+    // { "djb_hash", djb_hash, 1.5 },
     // { "djb_hash", djb_hash, 2.5 },
 
     // { "sax_hash", sax_hash, 1.0 },
-    { "sax_hash", sax_hash, 1.5 },
+    // { "sax_hash", sax_hash, 1.5 },
     { "murmur64a_hash", murmur64a_hash, 1.5 },
     { "wyhash_hash", wyhash_hash, 1.5 },
-    { "simple_hash", simple_hash, 1.5 },
+    // { "simple_hash", simple_hash, 1.5 },
     // { "psb_hash", psb_hash, 1.5 },
-    { "jsw_hash", jsw_hash, 1.5 },
+    // { "jsw_hash", jsw_hash, 1.5 },
     // { "jsw_hash", jsw_hash, 2.5 },
 
     // { "elf_hash", elf_hash, 1.0 },
@@ -497,23 +497,23 @@ struct hash_fun hash_funs[] = {
     // { "elf_hash", elf_hash, 2.5 },
 
     // { "jen_hash", jen_hash, 1.0 },
-    { "jen_hash", jen_hash, 1.5 },
+    // { "jen_hash", jen_hash, 1.5 },
     // { "jen_hash", jen_hash, 2.5 },
 
     // { "djb2_hash", djb2_hash, 1.0 },
-    { "djb2_hash", djb2_hash, 1.5 },
+    // { "djb2_hash", djb2_hash, 1.5 },
     // { "djb2_hash", djb2_hash, 2.5 },
 
     // { "sdbm_hash", sdbm_hash, 1.0 },
-    { "sdbm_hash", sdbm_hash, 1.5 },
+    // { "sdbm_hash", sdbm_hash, 1.5 },
     // { "sdbm_hash", sdbm_hash, 2.5 },
 
     // { "fnv_hash", fnv_hash, 1.0 },
-    { "fnv_hash", fnv_hash, 1.5 },
+    // { "fnv_hash", fnv_hash, 1.5 },
     // { "fnv_hash", fnv_hash, 2.5 },
 
     // { "fnv_hash", fnv_hash, 1.0 },
-    { "oat_hash", oat_hash, 1.5 },
+    // { "oat_hash", oat_hash, 1.5 },
 
 
     { "", NULL, 0.0 },
@@ -697,6 +697,107 @@ int main( int argc, char **argv )
             free(coll);
         }
     }
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    double insert_time = 0;
+    double get_time = 0;
+    double del_time = 0;
+
+    if ( which & 2 )
+    {
+        printf("\n***** Testing VOIDP mode\n");
+        int coll;
+        int curr;
+
+        printf("%15s%15s%15s%20s%20s%15s%20s%20s%15s%20s%20s%15s\n", "HashFunc", "RealHashSize", "LoadFactor", "AvgInsertTime(ns)", "InsertCollisions", "InsertElems", "AvgGetTime(ns)", "GetCollisions", "GetElems", "AvgDelTime(ns)", "DelCollisions", "DelElems");
+
+        char keys[8*1024];
+
+        for (int i = 0; hash_funs[i].hash_fun != NULL; i++)
+        {
+            int num_strings = 1000000; // simulating 1 million random keys
+
+            fh_t *f = fh_create(num_strings, FH_DATALEN_VOIDP, hash_funs[i].hash_fun);
+
+            if ( f == NULL )
+            {
+                printf("fh_create returned NULL\n");
+            }
+
+            printf("%15s%15d%15f",
+                   hash_funs[i].hash_fun_name, f->h_dim, 1.0);
+
+            insert_time = 0;
+            struct mydata *mdarray = calloc(sizeof(struct mydata), num_strings+1);
+
+            for ( int l = 0; l< num_strings; l++ )
+            {
+                generate_random_str(1000+l, keys, 100, 350);
+
+                sprintf(mdarray[l].checksum, "%0x", l);
+
+                timing_start(t);
+                fh_insert(f, keys, mdarray[l].checksum);
+                delta = timing_end(t);
+                insert_time = compute_average(insert_time, l, delta);
+
+            }
+            fh_getattr(f, FH_ATTR_COLLISION, &coll);
+            fh_getattr(f, FH_ATTR_ELEMENT, &curr);
+
+            // printf("Average insert time in nanosecs : %.2f, coll %d, elem %d\n", insert_time, coll, curr);
+            printf("%20.2f%20d%15d", insert_time, coll, curr);
+
+            for ( int l = 0; l< num_strings; l++ )
+            {
+                generate_random_str(1000+l, keys, 100, 350);
+                int err;
+                char *csum;
+
+                timing_start(t);
+                csum = fh_get(f, keys, &err);
+                delta = timing_end(t);
+                get_time = compute_average(get_time, l, delta);
+
+                if (csum == NULL)
+                {
+                    printf("error %d in fh_get\n", err);
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            fh_getattr(f, FH_ATTR_COLLISION, &coll);
+            fh_getattr(f, FH_ATTR_ELEMENT, &curr);
+            // printf("Average fh_get time in nanosecs : %.2f, coll %d, elem %d\n", get_time, coll, curr);
+            printf("%20.2f%20d%15d", get_time, coll, curr);
+
+            // now del
+
+            for ( int l = 0; l< num_strings; l++ )
+            {
+                generate_random_str(1000+l, keys, 100, 350);
+
+                timing_start(t);
+                fh_del(f, keys);
+                delta = timing_end(t);
+                del_time = compute_average(del_time, l, delta);
+
+            }
+
+            fh_getattr(f, FH_ATTR_COLLISION, &coll);
+            fh_getattr(f, FH_ATTR_ELEMENT, &curr);
+            printf("%20.2f%20d%15d\n", del_time, coll, curr);
+
+            fh_destroy(f);
+            free(mdarray);
+        }
+    }
+
 
 
     timing_delete_timer(t);
