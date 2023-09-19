@@ -559,8 +559,8 @@ int count_lines(const char *file)
     return(lines);
 }
 
-#define ASCII0      'a'
-#define ASCIISET    'z'
+#define ASCII0      ' ' // dec 32
+#define ASCIISET    '}' // dec 125
 
 void generate_random_str(int seed, char *str, int min_len, int max_len)
 {
@@ -668,7 +668,7 @@ int main( int argc, char **argv )
 
             for ( int l = 0; l< num_strings; l++ )
             {
-                generate_random_str(1000+l, keys, 10, 45);
+                generate_random_str(1000+l, keys, 10, 35);
                 // check if ua present in cache
                 timing_start(t);
                 int hashval = hash_funs[i].hash_fun(keys) & (real_hash_size-1);
@@ -718,7 +718,7 @@ int main( int argc, char **argv )
 
         int key_len_min[max_key_len_tests], key_len_max[max_key_len_tests];
         key_len_min[0] = 10;
-        key_len_max[0] = 45;
+        key_len_max[0] = 35;
         
         key_len_min[1] = 100;
         key_len_max[1] = 350;
