@@ -714,87 +714,104 @@ int main( int argc, char **argv )
         int coll;
         int curr;
 
-        printf("%15s%15s%15s%20s%20s%15s%20s%20s%15s%20s%20s%15s\n", "HashFunc", "RealHashSize", "LoadFactor", "AvgInsertTime(ns)", "InsertCollisions", "InsertElems", "AvgGetTime(ns)", "GetCollisions", "GetElems", "AvgDelTime(ns)", "DelCollisions", "DelElems");
+        int max_key_len_tests = 2;
 
-        char keys[8*1024];
+        int key_len_min[max_key_len_tests], key_len_max[max_key_len_tests];
+        key_len_min[0] = 10;
+        key_len_max[0] = 45;
+        
+        key_len_min[1] = 100;
+        key_len_max[1] = 350;
 
-        for (int i = 0; hash_funs[i].hash_fun != NULL; i++)
+
+        for (int key_lens = 0; key_lens<max_key_len_tests; )
         {
-            int num_strings = 1000000; // simulating 1 million random keys
 
-            fh_t *f = fh_create(num_strings, FH_DATALEN_VOIDP, hash_funs[i].hash_fun);
+            printf("--- libfh speed on random (%d-%d) keys\n", key_len_min[key_lens], key_len_max[key_lens]);
 
-            if ( f == NULL )
+            printf("%15s%15s%15s%20s%20s%15s%20s%20s%15s%20s%20s%15s\n", "HashFunc", "RealHashSize", "LoadFactor", "AvgInsertTime(ns)", "InsertCollisions", "InsertElems", "AvgGetTime(ns)", "GetCollisions", "GetElems", "AvgDelTime(ns)", "DelCollisions", "DelElems");
+
+            char keys[8*1024];
+
+            for (int i = 0; hash_funs[i].hash_fun != NULL; i++)
             {
-                printf("fh_create returned NULL\n");
-            }
+                int num_strings = 1000000; // simulating 1 million random keys
 
-            printf("%15s%15d%15f",
-                   hash_funs[i].hash_fun_name, f->h_dim, 1.0);
+                fh_t *f = fh_create(num_strings, FH_DATALEN_VOIDP, hash_funs[i].hash_fun);
 
-            insert_time = 0;
-            struct mydata *mdarray = calloc(sizeof(struct mydata), num_strings+1);
-
-            for ( int l = 0; l< num_strings; l++ )
-            {
-                generate_random_str(1000+l, keys, 100, 350);
-
-                sprintf(mdarray[l].checksum, "%0x", l);
-
-                timing_start(t);
-                fh_insert(f, keys, mdarray[l].checksum);
-                delta = timing_end(t);
-                insert_time = compute_average(insert_time, l, delta);
-
-            }
-            fh_getattr(f, FH_ATTR_COLLISION, &coll);
-            fh_getattr(f, FH_ATTR_ELEMENT, &curr);
-
-            // printf("Average insert time in nanosecs : %.2f, coll %d, elem %d\n", insert_time, coll, curr);
-            printf("%20.2f%20d%15d", insert_time, coll, curr);
-
-            for ( int l = 0; l< num_strings; l++ )
-            {
-                generate_random_str(1000+l, keys, 100, 350);
-                int err;
-                char *csum;
-
-                timing_start(t);
-                csum = fh_get(f, keys, &err);
-                delta = timing_end(t);
-                get_time = compute_average(get_time, l, delta);
-
-                if (csum == NULL)
+                if ( f == NULL )
                 {
-                    printf("error %d in fh_get\n", err);
-                    exit(EXIT_FAILURE);
+                    printf("fh_create returned NULL\n");
                 }
+
+                printf("%15s%15d%15f",
+                    hash_funs[i].hash_fun_name, f->h_dim, 1.0);
+
+                insert_time = 0;
+                // struct mydata *mdarray = calloc(sizeof(struct mydata), num_strings+1);
+
+                for ( int l = 0; l< num_strings; l++ )
+                {
+                    generate_random_str(1000+l, keys, key_len_min[key_lens], key_len_max[key_lens]);
+
+                    // sprintf(mdarray[l].checksum, "%0x", l);
+
+                    timing_start(t);
+                    fh_insert(f, keys, 100); // fixed value for key
+                    delta = timing_end(t);
+                    insert_time = compute_average(insert_time, l, delta);
+
+                }
+                fh_getattr(f, FH_ATTR_COLLISION, &coll);
+                fh_getattr(f, FH_ATTR_ELEMENT, &curr);
+
+                // printf("Average insert time in nanosecs : %.2f, coll %d, elem %d\n", insert_time, coll, curr);
+                printf("%20.2f%20d%15d", insert_time, coll, curr);
+
+                for ( int l = 0; l< num_strings; l++ )
+                {
+                    generate_random_str(1000+l, keys, key_len_min[key_lens], key_len_max[key_lens]);
+                    int err;
+                    char *csum;
+
+                    timing_start(t);
+                    csum = fh_get(f, keys, &err);
+                    delta = timing_end(t);
+                    get_time = compute_average(get_time, l, delta);
+
+                    if ((csum == NULL) || (csum != 100))
+                    {
+                        printf("error %d in fh_get, csum %d\n", err, csum);
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
+                fh_getattr(f, FH_ATTR_COLLISION, &coll);
+                fh_getattr(f, FH_ATTR_ELEMENT, &curr);
+                // printf("Average fh_get time in nanosecs : %.2f, coll %d, elem %d\n", get_time, coll, curr);
+                printf("%20.2f%20d%15d", get_time, coll, curr);
+
+                // now del
+
+                for ( int l = 0; l< num_strings; l++ )
+                {
+                    generate_random_str(1000+l, keys, key_len_min[key_lens], key_len_max[key_lens]);
+
+                    timing_start(t);
+                    fh_del(f, keys);
+                    delta = timing_end(t);
+                    del_time = compute_average(del_time, l, delta);
+
+                }
+
+                fh_getattr(f, FH_ATTR_COLLISION, &coll);
+                fh_getattr(f, FH_ATTR_ELEMENT, &curr);
+                printf("%20.2f%20d%15d\n", del_time, coll, curr);
+
+                fh_destroy(f);
+                // free(mdarray);
             }
-
-            fh_getattr(f, FH_ATTR_COLLISION, &coll);
-            fh_getattr(f, FH_ATTR_ELEMENT, &curr);
-            // printf("Average fh_get time in nanosecs : %.2f, coll %d, elem %d\n", get_time, coll, curr);
-            printf("%20.2f%20d%15d", get_time, coll, curr);
-
-            // now del
-
-            for ( int l = 0; l< num_strings; l++ )
-            {
-                generate_random_str(1000+l, keys, 100, 350);
-
-                timing_start(t);
-                fh_del(f, keys);
-                delta = timing_end(t);
-                del_time = compute_average(del_time, l, delta);
-
-            }
-
-            fh_getattr(f, FH_ATTR_COLLISION, &coll);
-            fh_getattr(f, FH_ATTR_ELEMENT, &curr);
-            printf("%20.2f%20d%15d\n", del_time, coll, curr);
-
-            fh_destroy(f);
-            free(mdarray);
+            key_lens++;
         }
     }
 
