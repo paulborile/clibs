@@ -13,18 +13,48 @@ const (
 func main() {
 
 	m := make(map[string]int, NumKeys)
-	var InsertAvgTime float64
+	var InsertAvgTime, GetAvgTime, DelAvgTime float64
+	var keys []string
+
+	fmt.Printf("Building keys...\n")
+	for j := 0; j < NumKeys; j++ {
+		keys = append(keys, GenerateRandomStrings(int64(1000+j), 100, 350))
+	}
 
 	for i := 0; i < NumKeys; i++ {
-		key := GenerateRandomStrings(int64(1000+i), 100, 350)
+		// key := GenerateRandomStrings(int64(1000+i), 100, 350)
 
 		t0 := time.Now()
-		m[key] = 1
+		m[keys[i]] = 1
 		t1 := time.Now()
 		dur := int64(t1.Sub(t0))
 		InsertAvgTime = computeAverage(InsertAvgTime, i, dur)
 	}
-	fmt.Printf("avg insert time %.4f\n", InsertAvgTime/float64(time.Microsecond))
+	fmt.Printf("%d random keys, size %d-%d, avg insert time %.4f\n", NumKeys, 100, 350, InsertAvgTime/float64(time.Microsecond))
+
+	for i := 0; i < NumKeys; i++ {
+		// key := GenerateRandomStrings(int64(1000+i), 100, 350)
+
+		t0 := time.Now()
+		if m[keys[i]] != 1 {
+			fmt.Printf("something bad happedning\n")
+		}
+		t1 := time.Now()
+		dur := int64(t1.Sub(t0))
+		GetAvgTime = computeAverage(GetAvgTime, i, dur)
+	}
+	fmt.Printf("%d random keys, size %d-%d, avg get time %.4f\n", NumKeys, 100, 350, GetAvgTime/float64(time.Microsecond))
+
+	for i := 0; i < NumKeys; i++ {
+		// key := GenerateRandomStrings(int64(1000+i), 100, 350)
+
+		t0 := time.Now()
+		delete(m, keys[i])
+		t1 := time.Now()
+		dur := int64(t1.Sub(t0))
+		DelAvgTime = computeAverage(DelAvgTime, i, dur)
+	}
+	fmt.Printf("%d random keys, size %d-%d, avg del time %.4f\n", NumKeys, 100, 350, DelAvgTime/float64(time.Microsecond))
 
 }
 
