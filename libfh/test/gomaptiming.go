@@ -20,6 +20,7 @@ func main() {
 	for j := 0; j < NumKeys; j++ {
 		keys = append(keys, GenerateRandomStrings(int64(1000+j), 100, 350))
 	}
+	fmt.Printf("...done\n")
 
 	for i := 0; i < NumKeys; i++ {
 		// key := GenerateRandomStrings(int64(1000+i), 100, 350)

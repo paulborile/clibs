@@ -17,6 +17,8 @@
 
 uint64_t seed[4];
 
+extern char *strdup(const char *s);
+
 void wyhash_hash_init()
 {
     make_secret(time(NULL), seed);
@@ -562,7 +564,7 @@ int count_lines(const char *file)
 #define ASCII0      ' ' // dec 32
 #define ASCIISET    '}' // dec 125
 
-void generate_random_str(int seed, char *str, int min_len, int max_len)
+void generate_random_str(int seed, char str[], int min_len, int max_len)
 {
     int i, irandom;
     char c;
@@ -585,6 +587,7 @@ static unsigned int fh_hash_size(unsigned int s)
     return i;
 }
 
+
 int main( int argc, char **argv )
 {
     struct mydata
@@ -606,14 +609,15 @@ int main( int argc, char **argv )
 
     printf("Tests are run on random keys\n");
 
+    int num_strings = 1000000; // simulating 1 million random keys
+
+
     if (which & 1)
     {
-        char keys[8*1024];
+        char rkeys[8*1024];
 
         printf("--- hash_function speed on random long (100-350) keys\n");
         printf("%10s%20s%15s%17s%15s%17s%18s\n", "Keys", "HashFunc", "HashSize", "AvgTime(ns)", "Collisions", "LongestChain", "HashDimFactor");
-
-        int num_strings = 1000000; // simulating 1 million random keys
 
         for (int i = 0; hash_funs[i].hash_fun != NULL; i++)
         {
@@ -625,10 +629,10 @@ int main( int argc, char **argv )
 
             for ( int l = 0; l< num_strings; l++ )
             {
-                generate_random_str(1000+l, keys, 100, 350);
+                generate_random_str(1000+l, rkeys, 100, 350);
 
                 timing_start(t);
-                int hashval = hash_funs[i].hash_fun(keys) & (real_hash_size-1);
+                int hashval = hash_funs[i].hash_fun(rkeys) & (real_hash_size-1);
                 delta = timing_end(t);
                 hash_calc_time = compute_average(hash_calc_time, l, delta);
                 if (coll[hashval] != 0 )
@@ -657,7 +661,6 @@ int main( int argc, char **argv )
         printf("\n--- hash_function speed on short keys (10 to 45 char len)\n");
         printf("%10s%20s%15s%17s%15s%17s%18s\n", "Keys", "HashFunc", "HashSize", "AvgTime(ns)", "Collisions", "LongestChain", "HashDimFactor");
 
-        num_strings = 1000000; // simulating 1 million random keys
         for (int i = 0; hash_funs[i].hash_fun != NULL; i++)
         {
             int real_hash_size = fh_hash_size(num_strings*hash_funs[i].hash_dim_factor);
@@ -668,10 +671,10 @@ int main( int argc, char **argv )
 
             for ( int l = 0; l< num_strings; l++ )
             {
-                generate_random_str(1000+l, keys, 10, 35);
+                generate_random_str(1000+l, rkeys, 10, 35);
                 // check if ua present in cache
                 timing_start(t);
-                int hashval = hash_funs[i].hash_fun(keys) & (real_hash_size-1);
+                int hashval = hash_funs[i].hash_fun(rkeys) & (real_hash_size-1);
                 delta = timing_end(t);
                 hash_calc_time = compute_average(hash_calc_time, l, delta);
                 if (coll[hashval] != 0 )
@@ -719,23 +722,21 @@ int main( int argc, char **argv )
         int key_len_min[max_key_len_tests], key_len_max[max_key_len_tests];
         key_len_min[0] = 10;
         key_len_max[0] = 35;
-        
+
         key_len_min[1] = 100;
         key_len_max[1] = 350;
 
-
         for (int key_lens = 0; key_lens<max_key_len_tests; )
         {
+            // hold random keys
+            char keys[512];
 
             printf("--- libfh speed on random (%d-%d) keys\n", key_len_min[key_lens], key_len_max[key_lens]);
 
             printf("%15s%15s%15s%20s%20s%15s%20s%20s%15s%20s%20s%15s\n", "HashFunc", "RealHashSize", "LoadFactor", "AvgInsertTime(ns)", "InsertCollisions", "InsertElems", "AvgGetTime(ns)", "GetCollisions", "GetElems", "AvgDelTime(ns)", "DelCollisions", "DelElems");
 
-            char keys[8*1024];
-
             for (int i = 0; hash_funs[i].hash_fun != NULL; i++)
             {
-                int num_strings = 1000000; // simulating 1 million random keys
 
                 fh_t *f = fh_create(num_strings, FH_DATALEN_VOIDP, hash_funs[i].hash_fun);
 
@@ -745,10 +746,9 @@ int main( int argc, char **argv )
                 }
 
                 printf("%15s%15d%15f",
-                    hash_funs[i].hash_fun_name, f->h_dim, 1.0);
+                       hash_funs[i].hash_fun_name, f->h_dim, 1.0);
 
                 insert_time = 0;
-                // struct mydata *mdarray = calloc(sizeof(struct mydata), num_strings+1);
 
                 for ( int l = 0; l< num_strings; l++ )
                 {
@@ -814,8 +814,6 @@ int main( int argc, char **argv )
             key_lens++;
         }
     }
-
-
 
     timing_delete_timer(t);
 }
