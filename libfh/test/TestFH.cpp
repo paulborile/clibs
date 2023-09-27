@@ -663,11 +663,12 @@ TEST(FH, get_enumerator_and_list)
 {
     fh_t *fhash = NULL;
     int error = 0;
-    int hashsize = 20;
+    int hashsize = 100000;
     char key[10];
+    int err = 0;
 
     // Create hash table of strings
-    fhash = fh_create(hashsize, FH_DATALEN_STRING, NULL);
+    fhash = fh_create(100, FH_DATALEN_STRING, NULL);
     ASSERT_NE((fh_t *)0, fhash);
 
     // Fill it with data
@@ -696,13 +697,18 @@ TEST(FH, get_enumerator_and_list)
     {
         fh_elem_t *element = fh_enum_get_value(fhe, &error);
         EXPECT_NE((fh_elem_t *)0, element);
-        //cout << "Element read: " << element->key << endl;
+        // cout << "Element read: " << element->key << endl;
 
         if (previous != NULL)
         {
             // Check if sort order is ok
             EXPECT_GT(strcmp(element->key, previous->key), 0);
         }
+
+        // check that opaque in hash table is the same as in enum
+        char *opaque = (char *) fh_get(fhash, element->key, &err);
+        // printf("element-key %s, element->opaque_obj %s, opaque %s\n", element->key, (char *) element->opaque_obj, opaque);
+        EXPECT_EQ(strcmp((char *)element->opaque_obj, opaque), 0);
 
         if (element != NULL)
         {
