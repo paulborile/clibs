@@ -47,11 +47,11 @@ static void *thread_reader(void *ch)
 
     //cout << "READER: start thread" << endl;
 
-    while(eot != CH_GET_ENDOFTRANSMISSION)
+    while (eot != CH_GET_ENDOFTRANSMISSION)
     {
         eot = ch_get((ch_h *)ch, stringa);
 
-        if(eot < 0 && eot != CH_GET_ENDOFTRANSMISSION)
+        if (eot < 0 && eot != CH_GET_ENDOFTRANSMISSION)
         {
             cout << "Reader error!!! Retval " << eot << endl;
         }
@@ -79,7 +79,7 @@ static void *thread_writer(void *ch)
         sprintf(stringa, "Stringa %d", i);
         retval = ch_put((ch_h *)ch, stringa);
 
-        if(retval < 0)
+        if (retval < 0)
         {
             cout << "Writer error!!! Retval " << retval << endl;
         }
@@ -101,17 +101,17 @@ static void *thread_pointer_reader(void *ch)
 
     //cout << "POINTER READER: start thread" << endl;
 
-    while(eot != CH_GET_ENDOFTRANSMISSION)
+    while (eot != CH_GET_ENDOFTRANSMISSION)
     {
         eot = ch_get((ch_h *)ch, &element);
 
-        if(eot != CH_GET_ENDOFTRANSMISSION)
+        if (eot != CH_GET_ENDOFTRANSMISSION)
         {
-            if(eot < 0)
+            if (eot < 0)
             {
                 cout << "Pointer reader error!!! Retval " << eot << endl;
             }
-            else if(element != NULL)
+            else if (element != NULL)
             {
                 //cout << "POINTER READER: read element <" << element->counter << ">, text value <" << element->text << ">" << endl;
 
@@ -142,14 +142,14 @@ static void *thread_pointer_writer(void *ch)
 
         retval = ch_put((ch_h *)ch, element);
 
-        if(retval < 0)
+        if (retval < 0)
         {
             //cout << "Pointer writer error!!! Retval " << retval << endl;
         }
 
         //cout << "POINTER WRITER: wrote element <" << i << ">" << endl;
 
-        if(((ch_h *)ch)->datalen != CH_DATALEN_VOIDP)
+        if (((ch_h *)ch)->datalen != CH_DATALEN_VOIDP)
         {
             // Channel transports structs. Put make a copy of data, we must free allocated memory to avoid leak.
             free(element);
@@ -313,7 +313,7 @@ TEST(CH, peek_test)
     ASSERT_NE((ch_h *)0, ch);
 
     // Fill the queue
-    for(int ind = 0; ind < 10; ind++)
+    for (int ind = 0; ind < 10; ind++)
     {
         char stringa[20];
         sprintf(stringa, "Stringa %d", ind);
@@ -371,7 +371,7 @@ TEST(CH, attr_test)
     ASSERT_NE((ch_h *)0, ch);
 
     // Fill the queue
-    for(int ind = 0; ind < limit; ind++)
+    for (int ind = 0; ind < limit; ind++)
     {
         char stringa[20];
         sprintf(stringa, "Stringa %d", ind);

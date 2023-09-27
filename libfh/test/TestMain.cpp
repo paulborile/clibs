@@ -43,10 +43,10 @@ int main(int argc, char *argv[])
 
     // For picobench
 
-    picobench::runner r;
-    // Optionally parse command line
-    r.parse_cmd_line(argc, argv);
-    r.run();
+    // picobench::runner r;
+    // // Optionally parse command line
+    // r.parse_cmd_line(argc, argv);
+    // r.run();
 
     return testResult;
 }

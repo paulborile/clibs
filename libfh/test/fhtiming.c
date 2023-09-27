@@ -2,11 +2,13 @@
 //#define _BSD_SOURCE
 
 #include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <sys/types.h>
 #include <stdint.h>
-#include <time.h>
+#include <stdlib.h>
+
+#include <string.h>
 #include <pthread.h>
+#include <time.h>
 
 
 #include    "fh.h"
@@ -580,14 +582,6 @@ void generate_random_str(int seed, char str[], int min_len, int max_len)
     return;
 }
 
-static unsigned int fh_hash_size(unsigned int s)
-{
-    unsigned int i = 1;
-    while (i < s) i <<= 1;
-    return i;
-}
-
-
 int main( int argc, char **argv )
 {
     struct mydata
@@ -725,6 +719,29 @@ int main( int argc, char **argv )
 
         key_len_min[1] = 100;
         key_len_max[1] = 350;
+
+        printf("Generating random strings ...\n");
+
+        // generate string sets
+        // char **random_strings;
+        // random_strings = malloc(num_strings * sizeof (char *));
+
+        // char rnd_keys[512];
+
+
+        // for (int k=0; k< num_strings; k++)
+        // {
+        //     generate_random_str(1000+k, rnd_keys, key_len_min[0], key_len_max[0]);
+        //     random_strings[k] = strdup(rnd_keys);
+        // }
+
+        // for (int k=0; k< num_strings; k++)
+        // {
+        //     generate_random_str(1000+k, rnd_keys, key_len_min[1], key_len_max[1]);
+        //     random_strings[1][k] = strdup(rnd_keys);
+        // }
+
+        printf("... done\n");
 
         for (int key_lens = 0; key_lens<max_key_len_tests; )
         {

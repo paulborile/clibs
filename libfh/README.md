@@ -1,8 +1,9 @@
 # libfh 
 
-libfh : fast hashtable, advanced multi threading support, key is only string and is always copied inside (unless FH_SETATTR_DONTCOPYKEY is set), opaque data is allocated and copied inside hash and can be string (datalen = FH_DATALEN_STRING), fixed lenght (datalen = sizeof data) or datalen = FH_DATALEN_VOIDP just copies void pointer. hashfunction is oat hash (one at a time hash) by Bob Jenkins but you can set your hash function in fh_create()
+libfh : fast hashtable, advanced multi threading support, key is only string and is always copied inside (unless FH_SETATTR_DONTCOPYKEY is set), opaque data is allocated and copied inside hash and can be string (datalen = FH_DATALEN_STRING), fixed lenght (datalen = sizeof data) or datalen = FH_DATALEN_VOIDP just copies void pointer. hashfunction is wyhash hash fronm 0.10.0 on but you can set your hash function in fh_create().
 
 May 2023 : introduced Murmurhash and benchmarks with picobench ( https://github.com/iboB/picobench )
+0.10.0 introduced Wyhash (Go, Zig ..)
 
 ```
 cd libfh
