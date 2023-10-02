@@ -8,7 +8,7 @@ This repo contains standard components used to develop faster in C. All librarie
 
 Available components :
 
-- fh : a fast, multi-thread optimized open hash hashtable
+- fh : a fast, bucketed, multi-thread optimized open hashtable
 - channel : a golang inspired channel object with multi-thread aware blocking get operations
 - vector : a simple dynamic vector
 - lru : lru cache based on fh
@@ -20,7 +20,9 @@ libfh : fast hashtable, advanced multi threading support, key is only string and
 (unless FH_SETATTR_DONTCOPYKEY is set), opaque data is allocated and copied inside hash and can be string 
 (datalen = FH_DATALEN_STRING), fixed lenght (datalen = sizeof data) or datalen = FH_DATALEN_VOIDP just 
 copies void pointer.
-hashfunction is oat hash (one at a time hash) by Bob Jenkins but you can set your hash function in fh_create().
+hashfunction is wyhash (from 0.10.0) but you can set your hash function in fh_create().
+1.0.0 introduces a bucketed version (inspired heavily by go map) which increases performance by 40% minimum.
+
 Sample code :
 
 ```

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0 Sept 2023
+
+- introduced buckets for collisions (size 8) heavily inspired by go map source
+- had to deprecate fh_scan_start/fh_scan_next since signature is not good anymore (at least for now).
+  Use enumerators to scan the hashtable.
+
 ## 0.10.0 Aug 2023
 
 - adopted wyhash (Go, Zig..) as the default hashfun

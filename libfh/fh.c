@@ -22,7 +22,7 @@
 #include  "wyhash.h"
 
 // version
-static char version[] = "0.10.0";
+static char version[] = "1.0.0";
 
 static void wyhash_hash_init(fh_t *fh)
 {
@@ -31,6 +31,11 @@ static void wyhash_hash_init(fh_t *fh)
 
 uint64_t fh_default_hash(char *key)
 {
+    if (key[0] == '\0' )
+    {
+        // return fixed value on empty string
+        return 1;
+    }
     uint64_t h = wyhash(key, strlen(key), 0, _wyp);
     return h;
 }
@@ -39,9 +44,15 @@ uint64_t fh_default_hash(char *key)
 #define FH_KEY_CHECK(key) if (!key) return (FH_INVALID_KEY)
 #define FHE_CHECK(f) if ((!f) || (f->magic != FHE_MAGIC_ID)) return (FH_BAD_HANDLE)
 
+// make mini hash
+// we want to reserve some values of tophash for further use
+#define MIN_MINIHASH    5 // so we have 0->4 values for future use
+#define MAKE_MINIHASH(x,r) {r = x >> 56; if (r < MIN_MINIHASH) r += MIN_MINIHASH;} 
+
+// 
 // makes sure the real size of the buckets array is a power of 2 so we can use && for hash truncation
 // adds 1.5 size factor to allow for enough space to limit collisions
-static unsigned int fh_hash_size(unsigned int s)
+unsigned int fh_hash_size(unsigned int s)
 {
     unsigned int i = 1;
     s = s + s/2; // add 50%
@@ -326,65 +337,95 @@ int fh_destroy(fh_t *fh)
     return (FH_OK);
 }
 
+// _fh_allocate_bucket() - helper for allocating fh_bucket and clearing only needed data
+static fh_bucket *_fh_allocate_bucket()
+{
+    fh_bucket *r = malloc(sizeof(fh_bucket));
+    if (r == NULL)
+        return NULL;
+    for (int i=0; i<BUCKET_SIZE; i++)
+    {
+        r->mini_hashes[i] = 0;
+        r->slot[i].key = NULL; // clean keys
+        r->slot[i].opaque_obj = NULL;
+    }
+    r->next = NULL;
+    return r;
+}
+
+static fh_slot *_fh_return_empty_slot_in_bucket(fh_bucket *b, char *key, uint8_t mini_hash);
+
 // insert : copies both key and opaque data. If slot already used
 // allocates a newone and incremets h_collision
 int fh_insert(fh_t *fh, char *key, void *block)
 {
     uint64_t i;
-    fh_slot *h_slot, *new_h_slot = NULL;
+    fh_bucket *bucket = NULL;
+    fh_slot *found_h_slot = NULL;
     void *new_opaque_obj = NULL;
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
 
     // looking for slot
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
+    // i = fh->hash_function(key) & (fh->h_dim -1);
+    // uint8_t mini_hash;
+    // MAKE_MINIHASH(i, mini_hash);
+
+    uint64_t h = fh->hash_function(key);
+    uint8_t mini_hash;
+    MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
+    i = h & (fh->h_dim -1);
 
     _fh_lock(fh, i);
 
     assert(i<(uint64_t)fh->h_dim);
 
-    h_slot = fh->hash_table[i].h_slot;
+    bucket = fh->hash_table[i].h_bucket;
 
-    if (h_slot != NULL)
+    if (bucket != NULL)
     {
         (fh->h_collision)++;
     }
 
-    //  scan list to end while checking for duplicates
-
-    while (h_slot != NULL)
+    // if bucket == NULL we need to allocate the first entry
+    if ( bucket == NULL )
     {
-        if ( strcmp(h_slot->key, key) == 0 )
+        bucket = fh->hash_table[i].h_bucket = _fh_allocate_bucket();
+        if ( bucket == NULL )
         {
-            // we have a duplicate key
             _fh_unlock(fh, i);
-            return (FH_DUPLICATED_ELEMENT);
+            return (FH_NO_MEMORY);
         }
-        h_slot = h_slot->next;
     }
+    //  find a place in bucket for new key/value
 
-    // new slot to add
-    new_h_slot = malloc(sizeof(fh_slot));
-    if (new_h_slot == NULL)
+    // returns fh_slot * - if opaque is not null it is a duplicate key
+    found_h_slot = _fh_return_empty_slot_in_bucket(bucket, key, mini_hash);
+    if (found_h_slot == NULL)
     {
         _fh_unlock(fh, i);
         return (FH_NO_MEMORY);
     }
 
-    new_h_slot->opaque_obj = NULL;
+    // returning an occupied slot mean duplicated entry
+    if ( found_h_slot->key != NULL )
+    {
+        // we have a duplicate key
+        _fh_unlock(fh, i);
+        return (FH_DUPLICATED_ELEMENT);
+    }
 
     // allocate and copy key
     if ( fh->h_attr & FH_SETATTR_DONTCOPYKEY )
     {
-        new_h_slot->key = key;
+        found_h_slot->key = key;
     }
     else
     {
-        new_h_slot->key = strdup(key);
-        if (new_h_slot->key == NULL)
+        found_h_slot->key = strdup(key);
+        if (found_h_slot->key == NULL)
         {
-            free(new_h_slot);
             _fh_unlock(fh, i);
             return (FH_NO_MEMORY);
         }
@@ -419,13 +460,14 @@ int fh_insert(fh_t *fh, char *key, void *block)
             }
         }
 
-        new_h_slot->opaque_obj = new_opaque_obj;
+        found_h_slot->opaque_obj = new_opaque_obj;
     }
 
-    fh_slot *old_first_h_slot = fh->hash_table[i].h_slot;
+    // old code that would put newly allocated slot in first position : we don't need anymore
+    // fh_bucket *old_first_h_bucket = fh->hash_table[i].h_bucket;
 
-    fh->hash_table[i].h_slot = new_h_slot;
-    new_h_slot->next = old_first_h_slot;
+    // fh->hash_table[i].h_slot = new_h_slot;
+    // new_h_slot->next = old_first_h_slot;
 
     _fh_unlock(fh, i);
 
@@ -436,21 +478,64 @@ int fh_insert(fh_t *fh, char *key, void *block)
     return (i);
 }
 
-static int _fh_del(fh_t *fh, char *key, int i);
+// _fh_return_empty_slot_in_bucket() - looks for an empty space in bucket chain
+// if needed allocates it, mini_hash is set on new empty entry
+static fh_slot *_fh_return_empty_slot_in_bucket(fh_bucket *b, char *key, uint8_t mini_hash)
+{
+    // printf("_fh_return_empty_slot_in_bucket(b = %p, key = %s, mini_hash = %x\n", b, key, mini_hash);
+    while (b != NULL)
+    {
+        for (int i=0; i<BUCKET_SIZE; i++)
+        {
+            // look for duplicates
+            if (b->mini_hashes[i] == mini_hash)
+            {
+                // candidate duplicate
+                if (strcmp(b->slot[i].key, key) == 0)
+                {
+                    // real duplicate
+                    return &(b->slot[i]);
+                }
+            }
+            // look for free entry
+            if (b->mini_hashes[i] == 0)
+            {
+                //empty slot : fill mini_hash
+                b->mini_hashes[i] = mini_hash;
+                return &(b->slot[i]);
+            }
+        }
+        // reached means no empty or duplicates
+        if ( b->next == NULL )
+        {
+            // we need an empty slot so we must add bucket
+            b->next = _fh_allocate_bucket();
+            if (b->next == NULL)
+                return NULL;                  // no memory
+        }
+        b = b->next;
+    }
+    return NULL;
+}
+
+static int _fh_del(fh_t *fh, char *key, int bucket_number, uint8_t mini_hash);
 
 // fh_del - remove item from hash and free memory
 int fh_del(fh_t *fh, char *key)
 {
-    uint64_t i;
+    int bckt_num;
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
 
-    // looking for slot
+    // find bucket
+    uint64_t h = fh->hash_function(key);
+    uint8_t mini_hash;
+    MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
+    bckt_num = h & (fh->h_dim -1);
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
-    _fh_lock(fh, i);
-    int rc = _fh_del(fh, key, i);
-    _fh_unlock(fh, i);
+    _fh_lock(fh, bckt_num);
+    int rc = _fh_del(fh, key, bckt_num, mini_hash);
+    _fh_unlock(fh, bckt_num);
 
     if (rc != FH_ELEMENT_NOT_FOUND)
     {
@@ -463,12 +548,16 @@ int fh_del(fh_t *fh, char *key)
 }
 
 // fh_dellocked - remove item from locked hash slot
-int fh_dellocked(fh_t *fh, char *key, int locked_slot)
+int fh_dellocked(fh_t *fh, char *key, int locked_bucket)
 {
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
 
-    int rc = _fh_del(fh, key, locked_slot);
+    uint64_t h = fh->hash_function(key);
+    uint8_t mini_hash;
+    MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
+
+    int rc = _fh_del(fh, key, locked_bucket, mini_hash);
 
     if (rc != FH_ELEMENT_NOT_FOUND)
     {
@@ -480,56 +569,116 @@ int fh_dellocked(fh_t *fh, char *key, int locked_slot)
     return (rc);
 }
 
-
-// internal fh_del which dels with no locks starting on a slot.
-// to be used by both fh_del() and fh_dellock()
-static int _fh_del(fh_t *fh, char *key, int i)
+// deallocate fh_bucket, start cannot be NULL. Return new address for start (either old one, new or null)
+fh_bucket *_deallocate_bucket_if_empty(fh_bucket *candidate, fh_bucket *start)
 {
-    register fh_slot *h_slot, *prev_h_slot = NULL;
+    for (int i = 0; i<BUCKET_SIZE; i++)
+    {
+        if (candidate->mini_hashes[i] != 0 )
+        {
+            // still data in
+            return start;
+        }
+    }
 
-    assert(i<fh->h_dim);
+    // if reached bucket is empty, detach it before freeing it
+    fh_bucket *finger = start;
+    if ( finger == candidate ) 
+    {
+        finger = candidate->next;
+        free(candidate);
+        return finger; // start changed
+    }
+    while (finger)
+    {
+        if ( finger->next == candidate )
+        {
+            finger->next = candidate->next;
+            free(candidate);
+            return start;
+        }
+        finger = finger->next;
+    }
+    // finger NULL but candidate bucket was not found ..... disaster
+    assert(0);
+    return start;
+}
 
-    h_slot = fh->hash_table[i].h_slot;
+static int _fh_find_slot_in_bucket(fh_bucket *b, char *key, uint8_t mini_hash, fh_bucket **ret_bucket);
+
+// internal fh_del which dels with no locks starting on a bucket.
+// to be used by both fh_del() and fh_dellock()
+static int _fh_del(fh_t *fh, char *key, int bucket_number, uint8_t mini_hash)
+{
+    fh_bucket *bucket, *actual_bucket;
+
+    assert(bucket_number<fh->h_dim);
+
+    bucket = fh->hash_table[bucket_number].h_bucket;
 
     // scan until end or element found
 
-    while ((h_slot != NULL) && (strcmp(h_slot->key, key)))
-    {
-        prev_h_slot = h_slot;
-        h_slot = h_slot->next;
-    }
-
-    if ( h_slot == NULL )
+    int b_slot = _fh_find_slot_in_bucket(bucket, key, mini_hash, &actual_bucket);
+    
+    if ( b_slot == -1 )
     {
         return (FH_ELEMENT_NOT_FOUND);
     }
 
     // remove the slot
+    // clean minihash
 
-    if (prev_h_slot != NULL)
-    {
-        prev_h_slot->next = h_slot->next;
-    }
-    else // slot to delete is first in list
-    {
-        fh->hash_table[i].h_slot = h_slot->next;
-    }
+    actual_bucket->mini_hashes[b_slot] = 0;
 
     // cleanup only for fixed size or string opaque object
-    if ((h_slot->opaque_obj) && (fh->h_datalen != FH_DATALEN_VOIDP))
+    if ((actual_bucket->slot[b_slot].opaque_obj) && (fh->h_datalen != FH_DATALEN_VOIDP))
     {
-        free(h_slot->opaque_obj);
+        free(actual_bucket->slot[b_slot].opaque_obj);
     }
+    actual_bucket->slot[b_slot].opaque_obj = NULL;
 
     if ( (fh->h_attr & FH_SETATTR_DONTCOPYKEY) == 0 )
     {
-        free(h_slot->key);
+        free(actual_bucket->slot[b_slot].key);
     }
+    actual_bucket->slot[b_slot].key = NULL;
 
-    free(h_slot);
-    h_slot = NULL;
+    // check if we can deallocate the bucket
+    fh->hash_table[bucket_number].h_bucket = _deallocate_bucket_if_empty(actual_bucket, bucket);
 
-    return(i);
+    return(bucket_number);
+}
+
+// _fh_find_slot_in_bucket() - finds a slot with give key, returns bucket and which entry (int)
+static int _fh_find_slot_in_bucket(fh_bucket *b, char *key, uint8_t mini_hash, fh_bucket **ret_bucket)
+{
+    // printf("_fh_find_slot_in_bucket(b = %p, key = %s, mini_hash = %x\n", b, key, mini_hash);
+
+    while (b != NULL)
+    {
+        for (int i=0; i<BUCKET_SIZE; i++)
+        {
+            // chek for a match
+            if (b->mini_hashes[i] == mini_hash)
+            {
+                // candidate match
+                if (strcmp(b->slot[i].key, key) == 0)
+                {
+                    // return it
+                    *ret_bucket = b;
+                    return i;
+                }
+            }
+        }
+        // reached means not found in first bucket, check if chain present
+        if ( b->next == NULL )
+        {
+            return -1; // no further chain
+        }
+        b = b->next;
+    }
+    // b was null from the beginning case
+    return -1;
 }
 
 // serch key and copy out opaque data
@@ -537,7 +686,8 @@ static int _fh_del(fh_t *fh, char *key, int i)
 int fh_search(fh_t *fh, char *key, void *block, int block_size)
 {
     uint64_t i;
-    register fh_slot *h_slot;
+    fh_bucket *bucket, *actual_bucket;
+
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
     if (!block)
@@ -549,31 +699,32 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
         return (FH_WRONG_DATALEN);
     }
 
+    // find bucket
+    uint64_t h = fh->hash_function(key);
+    uint8_t mini_hash;
+    MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
+    i = h & (fh->h_dim -1);
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
     _fh_lock(fh, i);
 
     assert(i<(uint64_t)fh->h_dim);
 
-    h_slot = fh->hash_table[i].h_slot;
+    bucket = fh->hash_table[i].h_bucket;
 
-    while ((h_slot != NULL) && (strcmp(h_slot->key, key)))
-    {
-        h_slot = h_slot->next;
-    }
-
-    if ( h_slot == NULL )
+    int b_slot = _fh_find_slot_in_bucket(bucket, key, mini_hash, &actual_bucket);
+    
+    if ( b_slot == -1 )
     {
         _fh_unlock(fh, i);
         return (FH_ELEMENT_NOT_FOUND);
     }
 
     // copy out
-    if (h_slot->opaque_obj)
+    if (actual_bucket->slot[b_slot].opaque_obj)
     {
         if ( fh->h_datalen > 0 ) // fixed size opaque_obj
         {
-            memcpy(block, h_slot->opaque_obj, fh->h_datalen);
+            memcpy(block, actual_bucket->slot[b_slot].opaque_obj, fh->h_datalen);
         }
         else if ( fh->h_datalen == FH_DATALEN_STRING ) // copy string
         {
@@ -583,7 +734,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
                 return(FH_DIM_INVALID);
             }
 
-            strncpy(block, h_slot->opaque_obj, block_size);
+            strncpy(block, actual_bucket->slot[b_slot].opaque_obj, block_size);
         }
     }
 
@@ -594,41 +745,45 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
 // search the hash and return pointer to the opaque_obj or NULL
 void *fh_get(fh_t *fh, char *key, int *error)
 {
-    if (!fh || fh->h_magic != FH_MAGIC_ID)
+    fh_bucket *bucket, *actual_bucket;
+
+    if ((fh == NULL) || (fh->h_magic != FH_MAGIC_ID))
     {
         *error = FH_BAD_HANDLE;
         return NULL;
     }
 
-    if (!key)
+    if (key == NULL)
     {
         *error = FH_INVALID_KEY;
         return NULL;
     }
 
     uint64_t i;
-    register fh_slot *h_slot;
     void *opaque = NULL;
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
+    // find bucket
+    uint64_t h = fh->hash_function(key);
+    uint8_t mini_hash;
+    MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
+    i = h & (fh->h_dim -1);
+    
     _fh_lock(fh, i);
 
     assert(i<(uint64_t)fh->h_dim);
+    
+    bucket = fh->hash_table[i].h_bucket;
 
-    h_slot = fh->hash_table[i].h_slot;
-
-    while ((h_slot != NULL) && (strcmp(h_slot->key, key)))
+    int b_slot = _fh_find_slot_in_bucket(bucket, key, mini_hash, &actual_bucket);
+    
+    if ( b_slot == -1 )
     {
-        h_slot = h_slot->next;
-    }
-
-    if ( h_slot == NULL )
-    {
-        *error = FH_ELEMENT_NOT_FOUND;
         _fh_unlock(fh, i);
-        return (NULL);
+        *error = FH_ELEMENT_NOT_FOUND;
+        return NULL;
     }
-    opaque = h_slot->opaque_obj;
+
+    opaque = actual_bucket->slot[b_slot].opaque_obj;
     _fh_unlock(fh, i);
     *error = FH_OK;
     return (opaque);
@@ -640,7 +795,7 @@ void *fh_get(fh_t *fh, char *key, int *error)
 void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
 {
     uint64_t i;
-    register fh_slot *h_slot;
+    fh_bucket *bucket, *actual_bucket;
 
     if (!fh || fh->h_magic != FH_MAGIC_ID)
     {
@@ -654,27 +809,29 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
         return NULL;
     }
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
+    // find bucket
+    uint64_t h = fh->hash_function(key);
+    uint8_t mini_hash;
+    MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
+    i = h & (fh->h_dim -1);
+
     _fh_lock(fh, i);
 
     assert(i<(uint64_t)fh->h_dim);
 
-    h_slot = fh->hash_table[i].h_slot;
+    bucket = fh->hash_table[i].h_bucket;
 
-    while ((h_slot != NULL) && (strcmp(h_slot->key, key)))
+    int b_slot = _fh_find_slot_in_bucket(bucket, key, mini_hash, &actual_bucket);
+    
+    if ( b_slot == -1 )
     {
-        h_slot = h_slot->next;
-    }
-
-    if ( h_slot == NULL )
-    {
-        *error = FH_ELEMENT_NOT_FOUND;
         _fh_unlock(fh, i);
-        return (NULL);
+        *error = FH_ELEMENT_NOT_FOUND;
+        return NULL;
     }
     (*slot) = i;
     *error = FH_OK;
-    return (h_slot->opaque_obj);
+    return (actual_bucket->slot[b_slot].opaque_obj);
 }
 
 // release a lock left from fh_searchlock
@@ -688,27 +845,27 @@ int fh_releaselock(fh_t *fh, int slot)
 
 // start scan and find first full entry in hash returning index and pointer to slot
 // call with *index containing 0 to start from beginning
-int fh_scan_start(fh_t *fh, int start_index, void **slot)
-{
-    int i;
-    FH_CHECK(fh);
+// int fh_scan_start(fh_t *fh, int start_index, void **slot)
+// {
+//     int i;
+//     FH_CHECK(fh);
 
-    // _fh_lock(fh); TODO which concurrency strategy ??
+//     // _fh_lock(fh); TODO which concurrency strategy ??
 
-    for (i = start_index; i < fh->h_dim; i++)
-    {
-        if (fh->hash_table[i].h_slot != NULL)
-        {
-            *slot = fh->hash_table[i].h_slot;
-            // _fh_unlock(fh);
-            return(i);
-        }
-    }
-    // empty hashtable or start_index points to another index in the hashtable and from that point on no data is present.
-    *slot = NULL;
-    // _fh_unlock(fh);
-    return (FH_ELEMENT_NOT_FOUND);
-}
+//     for (i = start_index; i < fh->h_dim; i++)
+//     {
+//         if (fh->hash_table[i].h_slot != NULL)
+//         {
+//             *slot = fh->hash_table[i].h_slot;
+//             // _fh_unlock(fh);
+//             return(i);
+//         }
+//     }
+//     // empty hashtable or start_index points to another index in the hashtable and from that point on no data is present.
+//     *slot = NULL;
+//     // _fh_unlock(fh);
+//     return (FH_ELEMENT_NOT_FOUND);
+// }
 
 // Enum creation. List of elements is allocated to the number of elements contained in hash table.
 // Idx is the current element index, initialized to the first element
@@ -738,21 +895,25 @@ fh_enum_t *fh_enum_create(fh_t *fh, int sort_order, int *error)
     for (int i = 0; i < fh->h_dim; i++)
     {
         _fh_lock(fh, i);
-        if (fh->hash_table[i].h_slot != NULL)
+
+        if (fh->hash_table[i].h_bucket != NULL)
         {
             // Get first element in slot
-            fh_slot *current = fh->hash_table[i].h_slot;
-            fhe->elem_list[enum_index].key = current->key;
-            fhe->elem_list[enum_index].opaque_obj = current->opaque_obj;
-            enum_index++;
+            fh_bucket *current = fh->hash_table[i].h_bucket;
 
-            // Chek if other elements are set in this slot
-            while (current->next != NULL)
+            while (current != NULL)
             {
+                // loop on bucket slots
+                for (int b=0; b<BUCKET_SIZE; b++)
+                {
+                    if (current->mini_hashes[b] != 0)
+                    {
+                        fhe->elem_list[enum_index].key = current->slot[b].key;
+                        fhe->elem_list[enum_index].opaque_obj = current->slot[b].opaque_obj;
+                        enum_index++;
+                    }
+                }
                 current = current->next;
-                fhe->elem_list[enum_index].key = current->key;
-                fhe->elem_list[enum_index].opaque_obj = current->opaque_obj;
-                enum_index++;
             }
         }
         _fh_unlock(fh, i);
@@ -826,91 +987,91 @@ int fh_enum_destroy(fh_enum_t *fhe)
 // takes index and slot as point of last scan and starting from there returns next entry (copies key and opaque)
 // if index and slot are not valid anymore return FH_ELEMENT_NOT_FOUND but continues
 // don't use if datalen = 0 ... won't return opaque pointer
-int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int block_size)
-{
-    int i, el_not_found = 0;
-    register fh_slot *h_slot;
-    FH_CHECK(fh);
+// int fh_scan_next(fh_t *fh, int *index, void **slot, char *key, void *block, int block_size)
+// {
+//     int i, el_not_found = 0;
+//     register fh_slot *h_slot;
+//     FH_CHECK(fh);
 
-    // _fh_lock(fh); TODO which concurrency strategy ??
-    h_slot = fh->hash_table[(*index)].h_slot;
-    while ((h_slot != NULL) && (h_slot != (fh_slot *)(*slot) ))
-    {
-        h_slot = h_slot->next;
-    }
+//     // _fh_lock(fh); TODO which concurrency strategy ??
+//     h_slot = fh->hash_table[(*index)].h_slot;
+//     while ((h_slot != NULL) && (h_slot != (fh_slot *)(*slot) ))
+//     {
+//         h_slot = h_slot->next;
+//     }
 
-    if (h_slot == NULL)
-    {
-        // slot not found, find next but return error, another thread may have cancelled the element.
-        el_not_found = 1;
+//     if (h_slot == NULL)
+//     {
+//         // slot not found, find next but return error, another thread may have cancelled the element.
+//         el_not_found = 1;
 
-        for (i = (*index) + 1; i < fh->h_dim; i++)
-        {
+//         for (i = (*index) + 1; i < fh->h_dim; i++)
+//         {
 
-            if (fh->hash_table[i].h_slot != NULL)
-            {
-                (*index) = i;
-                *slot = fh->hash_table[i].h_slot;
-                // _fh_unlock(fh);
+//             if (fh->hash_table[i].h_slot != NULL)
+//             {
+//                 (*index) = i;
+//                 *slot = fh->hash_table[i].h_slot;
+//                 // _fh_unlock(fh);
 
-                return (FH_ELEMENT_NOT_FOUND);
-            }
+//                 return (FH_ELEMENT_NOT_FOUND);
+//             }
 
-        }
-    }
-    else
-    {
-        // slot found return data
-        strcpy(key, h_slot->key);
-        // copy out
-        if (h_slot->opaque_obj)
-        {
-            if ( fh->h_datalen > 0 ) // fixed size opaque_obj
-            {
-                memcpy(block, h_slot->opaque_obj, fh->h_datalen);
-            }
-            else if ( fh->h_datalen == FH_DATALEN_STRING ) // copy string
-            {
-                strncpy(block, h_slot->opaque_obj, block_size);
-            }
-            // do nothing when datalen = 0
-        }
+//         }
+//     }
+//     else
+//     {
+//         // slot found return data
+//         strcpy(key, h_slot->key);
+//         // copy out
+//         if (h_slot->opaque_obj)
+//         {
+//             if ( fh->h_datalen > 0 ) // fixed size opaque_obj
+//             {
+//                 memcpy(block, h_slot->opaque_obj, fh->h_datalen);
+//             }
+//             else if ( fh->h_datalen == FH_DATALEN_STRING ) // copy string
+//             {
+//                 strncpy(block, h_slot->opaque_obj, block_size);
+//             }
+//             // do nothing when datalen = 0
+//         }
 
-        // return next slot
+//         // return next slot
 
-        if (h_slot->next != NULL)
-        {
-            // same index
-            *slot = h_slot->next;
-            // _fh_unlock(fh);
-            return (1);
-        }
+//         if (h_slot->next != NULL)
+//         {
+//             // same index
+//             *slot = h_slot->next;
+//             // _fh_unlock(fh);
+//             return (1);
+//         }
 
 
-        for (i = (*index) + 1; i < fh->h_dim; i++)
-        {
-            // finding next full h_slot
+//         for (i = (*index) + 1; i < fh->h_dim; i++)
+//         {
+//             // finding next full h_slot
 
-            if (fh->hash_table[i].h_slot != NULL)
-            {
-                *slot = fh->hash_table[i].h_slot;
-                (*index) = i;
-                // _fh_unlock(fh);
-                return (1);
-            }
-        }
-    }
-    // _fh_unlock(fh);
+//             if (fh->hash_table[i].h_slot != NULL)
+//             {
+//                 *slot = fh->hash_table[i].h_slot;
+//                 (*index) = i;
+//                 // _fh_unlock(fh);
+//                 return (1);
+//             }
+//         }
+//     }
+//     // _fh_unlock(fh);
 
-    // end of hash
-    *slot = NULL;
+//     // end of hash
+//     *slot = NULL;
 
-    if (el_not_found == 1)
-    {
-        return (FH_SCAN_END);
-    }
-    else
-    {
-        return (FH_OK);
-    }
-}
+//     if (el_not_found == 1)
+//     {
+//         return (FH_SCAN_END);
+//     }
+//     else
+//     {
+//         return (FH_OK);
+//     }
+// }

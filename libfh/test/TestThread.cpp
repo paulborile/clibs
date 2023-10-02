@@ -466,14 +466,14 @@ TEST(FH, multithread_test_with_enum)
 }
 
 // Check if get and enumerator functions should work at the same time with void pointer hashtable
-TEST(FH, DISABLED_multithread_test_with_void_pointer)
+TEST(FH, multithread_test_with_void_pointer)
 {
     char file[200];
     strcpy(file, CommandLineParamsParser::GetInstance()->GetValue("data-file").c_str());
 
     if (strlen(file) <= 0)
     {
-        strcpy(file, "../resources/fh-data.tsv");
+        strcpy(file, "./fh-data.tsv");
     }
 
     cout << "Input file is " << file << endl;
@@ -484,7 +484,7 @@ TEST(FH, DISABLED_multithread_test_with_void_pointer)
     string line;
 
     // Create hash table of strings
-    fhash = fh_create(100000, FH_DATALEN_VOIDP, NULL);
+    fhash = fh_create(10000, FH_DATALEN_VOIDP, NULL);
     ASSERT_NE((fh_t *)0, fhash);
 
     // Fill hashtable with data
@@ -535,7 +535,7 @@ TEST(FH, DISABLED_multithread_test_with_void_pointer)
     fh_enum_destroy(fhe);
 
     // Launch threads that work together on the same hash table. First of all, set execution to true (was set to false at the end of previous test)
-    int numexec = 10000;
+    int numexec = 100000;
     pthread_t threads[2];
     void *retval;
     pthread_create(&threads[0], NULL, &insert_only, (void *)&numexec);

@@ -69,19 +69,28 @@ extern "C" {
 // Tablesize limit under which there will be only one mutex
 #define SIZE_LIMIT_SINGLE_MUTEX     64
 
+// bucket/slot size in number of keys
+#define BUCKET_SIZE 8
 /*  Local types                                 */
 
 /** single structures used to contain data */
 struct _fh_slot {
     char *key;
-    struct _fh_slot *next;
     void *opaque_obj;
 };
 typedef struct _fh_slot fh_slot;
 
+// bucket contains slots for key/value
+struct _fh_bucket {
+    uint8_t mini_hashes[BUCKET_SIZE]; // for faster comparison of keys
+    fh_slot slot[BUCKET_SIZE];
+    struct _fh_bucket *next;
+};
+typedef struct _fh_bucket fh_bucket;
+
 // closed hashing : array of structs with pointer to slots
 struct _f_hash {
-    fh_slot *h_slot;
+    fh_bucket *h_bucket;
 };
 typedef struct _f_hash f_hash;
 typedef uint64_t (*fh_hash_fun)(char *key);
@@ -131,14 +140,16 @@ int fh_dellocked(fh_t *fh, char *key, int locked_slot);
 int fh_releaselock(fh_t *fh, int slot);
 
 uint64_t fh_default_hash(char *key);
+// compute the hash size given initial dimension
+unsigned int fh_hash_size(unsigned int s);
 
-
+// elements in enumeration
 struct _fh_elem_t {
     char *key;
     void *opaque_obj;
 };
 typedef struct _fh_elem_t fh_elem_t;
-
+// enumeration handle
 struct _fh_enum_t
 {
     int magic;  // Magic number
