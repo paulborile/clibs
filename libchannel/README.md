@@ -1,6 +1,6 @@
 # libch - a golang inspired channel library in C
 
-Connect producer / consumer threads with a thread safe channel
+Connect producer / consumer threads with a thread safe channel (only buffered at the moment)
 
 ```
     ...
