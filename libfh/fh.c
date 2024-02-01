@@ -22,16 +22,18 @@
 #include  "wyhash.h"
 
 // version
-static char version[] = "0.10.0";
+static char version[] = "0.10.1";
 
 static void wyhash_hash_init(fh_t *fh)
 {
-    make_secret(time(NULL), fh->seed);
+    fh->seed = time(NULL);
+    make_secret(fh->seed, fh->secret);
 }
 
-uint64_t fh_default_hash(char *key)
+uint64_t fh_default_hash(void *fh, char *key)
 {
-    uint64_t h = wyhash(key, strlen(key), 0, _wyp);
+    fh_t *f = (fh_t *)fh;
+    uint64_t h = wyhash(key, strlen(key), f->seed, f->secret);
     return h;
 }
 
@@ -338,7 +340,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
 
     // looking for slot
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
+    i = fh->hash_function(fh, key) & (fh->h_dim -1);
 
     _fh_lock(fh, i);
 
@@ -447,7 +449,7 @@ int fh_del(fh_t *fh, char *key)
 
     // looking for slot
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
+    i = fh->hash_function(fh, key) & (fh->h_dim -1);
     _fh_lock(fh, i);
     int rc = _fh_del(fh, key, i);
     _fh_unlock(fh, i);
@@ -550,7 +552,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     }
 
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
+    i = fh->hash_function(fh, key) & (fh->h_dim -1);
     _fh_lock(fh, i);
 
     assert(i<(uint64_t)fh->h_dim);
@@ -610,7 +612,7 @@ void *fh_get(fh_t *fh, char *key, int *error)
     register fh_slot *h_slot;
     void *opaque = NULL;
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
+    i = fh->hash_function(fh, key) & (fh->h_dim -1);
     _fh_lock(fh, i);
 
     assert(i<(uint64_t)fh->h_dim);
@@ -654,7 +656,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
         return NULL;
     }
 
-    i = fh->hash_function(key) & (fh->h_dim -1);
+    i = fh->hash_function(fh, key) & (fh->h_dim -1);
     _fh_lock(fh, i);
 
     assert(i<(uint64_t)fh->h_dim);
