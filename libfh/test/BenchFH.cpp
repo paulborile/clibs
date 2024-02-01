@@ -11,11 +11,11 @@
 #include "fh.h"
 
 static void generate_random_str(int seed, char *str, int min_len, int max_len);
-uint64_t    murmur64a_hash(char *key);
+uint64_t    murmur64a_hash(void *fh, char *key);
 /*
  * oat hash (one at a time hash), Bob Jenkins, used by cfu hash and perl
  */
-unsigned int fh_default_hash(char *key, int dim);
+uint64_t    fh_default_hash(void *fh, char *key);
 
 
 PICOBENCH_SUITE("BenchFH");
@@ -84,6 +84,7 @@ static void HashFunctionsDefaultX100(picobench::state &s)
     unsigned int hash;
     char key[65];
     int i = 0;
+    fh_t fh;
 
     generate_random_str(i, key, 32, 64);
 
@@ -91,7 +92,7 @@ static void HashFunctionsDefaultX100(picobench::state &s)
     {
         for (i = 0; i<100; i++)
         {
-            hash += fh_default_hash(key) & 127;
+            hash += fh_default_hash(&fh, key) & 127;
         }
     }
     // just to avoid optimizer removing all code..
@@ -108,6 +109,8 @@ static void HashFunctionsMurmurX100(picobench::state &s)
     unsigned int hash;
     char key[65];
     int i = 0;
+    fh_t fh;
+
 
     generate_random_str(i, key, 32, 64);
 
@@ -115,7 +118,7 @@ static void HashFunctionsMurmurX100(picobench::state &s)
     {
         for (i = 0; i<100; i++)
         {
-            hash += murmur64a_hash(key) & 127;
+            hash += murmur64a_hash(&fh, key) & 127;
         }
     }
     // just to avoid optimizer removing all code..
@@ -148,7 +151,7 @@ PICOBENCH(GenerateRandomString).label("GenerateRandomString").samples(10);
 
 #define BIG_CONSTANT(x) (x ## LLU)
 
-uint64_t    murmur64a_hash(char *key)
+uint64_t    murmur64a_hash(void *fh, char *key)
 {
     const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
     const int r = 47;
