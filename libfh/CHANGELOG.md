@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.1 Jan 2024
+- fixed seeding (was not working properly). Tests now show taht seeding works
+- breaking change on the hashfun signature. Additional void * used to pass fh_t where seed/secret is kept
+
 ## 0.10.0 Aug 2023
 
 - adopted wyhash (Go, Zig..) as the default hashfun
