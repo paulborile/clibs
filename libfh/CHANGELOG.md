@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 Sept Jan 2024
+
+- fixed seeding (was not working properly). Tests now show taht seeding works
+- breaking change on the hashfun signature. Additional void * used to pass fh_t where seed/secret is kept
+
+
 ## 1.0.0 Sept 2023
 
 - introduced buckets for collisions (size 8) heavily inspired by go map source
