@@ -22,21 +22,23 @@
 #include  "wyhash.h"
 
 // version
-static char version[] = "1.0.0";
+static char version[] = "1.0.1";
 
 static void wyhash_hash_init(fh_t *fh)
 {
-    make_secret(time(NULL), fh->seed);
+    fh->seed = time(NULL);
+    make_secret(fh->seed, fh->secret);
 }
 
-uint64_t fh_default_hash(char *key)
+uint64_t fh_default_hash(void *data, char *key)
 {
+    fh_t *fh = (fh_t *)data;
     if (key[0] == '\0' )
     {
         // return fixed value on empty string
         return 1;
     }
-    uint64_t h = wyhash(key, strlen(key), 0, _wyp);
+    uint64_t h = wyhash(key, strlen(key), fh->seed, fh->secret);
     return h;
 }
 
@@ -372,7 +374,7 @@ int fh_insert(fh_t *fh, char *key, void *block)
     // uint8_t mini_hash;
     // MAKE_MINIHASH(i, mini_hash);
 
-    uint64_t h = fh->hash_function(key);
+    uint64_t h = fh->hash_function(fh, key);
     uint8_t mini_hash;
     MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
     i = h & (fh->h_dim -1);
@@ -528,7 +530,7 @@ int fh_del(fh_t *fh, char *key)
     FH_KEY_CHECK(key);
 
     // find bucket
-    uint64_t h = fh->hash_function(key);
+    uint64_t h = fh->hash_function(fh, key);
     uint8_t mini_hash;
     MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
     bckt_num = h & (fh->h_dim -1);
@@ -553,7 +555,7 @@ int fh_dellocked(fh_t *fh, char *key, int locked_bucket)
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
 
-    uint64_t h = fh->hash_function(key);
+    uint64_t h = fh->hash_function(fh, key);
     uint8_t mini_hash;
     MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
 
@@ -700,7 +702,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     }
 
     // find bucket
-    uint64_t h = fh->hash_function(key);
+    uint64_t h = fh->hash_function(fh, key);
     uint8_t mini_hash;
     MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
     i = h & (fh->h_dim -1);
@@ -763,7 +765,7 @@ void *fh_get(fh_t *fh, char *key, int *error)
     void *opaque = NULL;
 
     // find bucket
-    uint64_t h = fh->hash_function(key);
+    uint64_t h = fh->hash_function(fh, key);
     uint8_t mini_hash;
     MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
     i = h & (fh->h_dim -1);
@@ -810,7 +812,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
     }
 
     // find bucket
-    uint64_t h = fh->hash_function(key);
+    uint64_t h = fh->hash_function(fh, key);
     uint8_t mini_hash;
     MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
     i = h & (fh->h_dim -1);

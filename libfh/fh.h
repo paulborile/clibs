@@ -93,7 +93,7 @@ struct _f_hash {
     fh_bucket *h_bucket;
 };
 typedef struct _f_hash f_hash;
-typedef uint64_t (*fh_hash_fun)(char *key);
+typedef uint64_t (*fh_hash_fun)(void *data, char *key);
 
 // fh object
 struct _fh_t {
@@ -110,7 +110,8 @@ struct _fh_t {
     pthread_mutex_t *h_lock;
     int n_lock;
     f_hash *hash_table;
-    uint64_t seed[4]; // wyhash seed
+    uint64_t seed; // wyhash seed
+    uint64_t secret[4]; // wyhash secret
 };
 typedef struct _fh_t fh_t;
 
@@ -139,8 +140,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error);
 int fh_dellocked(fh_t *fh, char *key, int locked_slot);
 int fh_releaselock(fh_t *fh, int slot);
 
-uint64_t fh_default_hash(char *key);
-// compute the hash size given initial dimension
+uint64_t fh_default_hash(void *data, char *key);// compute the hash size given initial dimension
 unsigned int fh_hash_size(unsigned int s);
 
 // elements in enumeration
