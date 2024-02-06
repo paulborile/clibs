@@ -1,8 +1,8 @@
 # libfh tests
 
-For tests
+For tests (and some benchmarks)
 ```
-make -f libfh-test.mk testclean testlinux testrun : for tests
+make -f libfh-test.mk testclean testlinux testrun
 ```
 
 For benchmarks
