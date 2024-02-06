@@ -21,22 +21,24 @@ uint64_t seed[4];
 
 extern char *strdup(const char *s);
 
-void wyhash_hash_init()
+void wyhash_hash_init(fh_t *f)
 {
-    make_secret(time(NULL), seed);
+    f->seed = time(NULL);
+    make_secret(f->seed, f->secret);
 }
 
-static uint64_t wyhash_hash(char *key)
+static uint64_t wyhash_hash(void *data, char *key)
 {
-    uint64_t h = wyhash(key, strlen(key), 0, _wyp);
+    fh_t *f = data;
+    uint64_t h = wyhash(key, strlen(key), f->seed, f->secret);
     return h;
 }
 
 // defined in libfh
-extern uint64_t fh_default_hash(char *key);
+extern uint64_t fh_default_hash(void *data, char *key);
 
 // old hash function (used with prime size table)
-uint64_t fh_default_hash_orig(char *name)
+uint64_t fh_default_hash_orig(void *data, char *name)
 {
     uint64_t h = 0, g;
     while (*name)
@@ -51,7 +53,7 @@ uint64_t fh_default_hash_orig(char *name)
 }
 
 // bernstein hash : fastest 71 micro
-uint64_t djb_hash(char *key)
+uint64_t djb_hash(void *data, char *key)
 {
     char *p = key;
     uint64_t h = 0;
@@ -67,7 +69,7 @@ uint64_t djb_hash(char *key)
 }
 
 // Shift-Add-XOR hash : slow as default
-uint64_t sax_hash(char *key)
+uint64_t sax_hash(void *data, char *key)
 {
     char *p = key;
     uint64_t h = 0;
@@ -115,7 +117,7 @@ static unsigned int jsw_tab[256] = {
     1088823125, 774689239, 2094327579, 904426542, 1277584415, 40549311, 1704978159, 754522520,
     1470178162, 1218715295, 1473694704, 827755998, 980267865, 748328527, 115557889, 1507477458
 };
-uint64_t jsw_hash(char *key)
+uint64_t jsw_hash(void *data, char *key)
 {
     uint64_t h = 16777551;
     int i;
@@ -130,7 +132,7 @@ uint64_t jsw_hash(char *key)
 
 // psb_hash : a variant of jsw
 
-uint64_t psb_hash(char *key)
+uint64_t psb_hash(void *data, char *key)
 {
     size_t i;
     size_t len = strlen(key);
@@ -167,7 +169,7 @@ uint64_t psb_hash(char *key)
 }
 
 /* simple: compute hash value of string */
-uint64_t simple_hash(char *key)
+uint64_t simple_hash(void *data, char *key)
 {
     uint64_t h;
     unsigned char *p;
@@ -179,7 +181,7 @@ uint64_t simple_hash(char *key)
 }
 
 
-uint64_t elf_hash(char *key)
+uint64_t elf_hash(void *data, char *key)
 {
     char *p = key;
     uint64_t h = 0, g;
@@ -219,7 +221,7 @@ uint64_t elf_hash(char *key)
         c -= a; c -= b; c ^= (b >> 15); \
     }
 
-uint64_t jen_hash(char *k)
+uint64_t jen_hash(void *data, char *k)
 {
     uint64_t a, b;
     uint64_t c = 9787;
@@ -269,7 +271,7 @@ uint64_t jen_hash(char *k)
 }
 //////////////////
 
-uint64_t djb2_hash(char *key)
+uint64_t djb2_hash(void *data, char *key)
 {
     uint64_t hash = 5381;
     int c;
@@ -280,7 +282,7 @@ uint64_t djb2_hash(char *key)
     return hash;
 }
 
-uint64_t sdbm_hash(char *key)
+uint64_t sdbm_hash(void *data, char *key)
 {
     uint64_t hash = 0;
     int c;
@@ -291,7 +293,7 @@ uint64_t sdbm_hash(char *key)
     return hash;
 }
 
-uint64_t fnv_hash(char *key)
+uint64_t fnv_hash(void *data, char *key)
 {
     uint64_t h = 2166136261;
     int i;
@@ -304,7 +306,7 @@ uint64_t fnv_hash(char *key)
     return h;
 }
 
-uint64_t oat_hash(char *key)
+uint64_t oat_hash(void *data, char *key)
 {
     uint64_t h = 0;
     int i;
@@ -395,7 +397,7 @@ static const unsigned int crc32_table[] =
 
 #include <stdint.h>
 
-uint64_t crc32_hash(char *buf)
+uint64_t crc32_hash(void *data, char *buf)
 {
     uint64_t h = 0;
     for (int i=0; buf[i] != 0; i++)
@@ -409,7 +411,7 @@ uint64_t crc32_hash(char *buf)
 
 #define BIG_CONSTANT(x) (x ## LLU)
 
-uint64_t murmur64a_hash(char *key)
+uint64_t murmur64a_hash(void *d, char *key)
 {
     const uint64_t m = BIG_CONSTANT(0xc6a4a7935bd1e995);
     const int r = 47;
@@ -468,14 +470,14 @@ uint64_t murmur64a_hash(char *key)
 struct hash_fun
 {
     char hash_fun_name[64];
-    uint64_t (*hash_fun)(char *key);
+    uint64_t (*hash_fun)(void *data, char *key);
     double hash_dim_factor;
 };
 
 struct hash_fun hash_funs[] = {
     // { "fh_default_hash", fh_default_hash, 1.0 },
-    { "fh_default", fh_default_hash, 1.5 },
-    { "crc32_hash", crc32_hash, 1.5 },
+    // { "fh_default", fh_default_hash, 1.5 },
+    // { "crc32_hash", crc32_hash, 1.5 },
 
     // { "fh_default_hash", fh_default_hash, 2.5 },
 
@@ -484,7 +486,7 @@ struct hash_fun hash_funs[] = {
     // { "fh_default_hash_orig", fh_default_hash_orig, 2.5 },
 
     // { "djb_hash", djb_hash, 1.0 },
-    // { "djb_hash", djb_hash, 1.5 },
+    { "djb_hash", djb_hash, 1.5 },
     // { "djb_hash", djb_hash, 2.5 },
 
     // { "sax_hash", sax_hash, 1.0 },
@@ -497,27 +499,26 @@ struct hash_fun hash_funs[] = {
     // { "jsw_hash", jsw_hash, 2.5 },
 
     // { "elf_hash", elf_hash, 1.0 },
-    // { "elf_hash", elf_hash, 1.5 },
+    { "elf_hash", elf_hash, 1.5 },
     // { "elf_hash", elf_hash, 2.5 },
 
     // { "jen_hash", jen_hash, 1.0 },
-    // { "jen_hash", jen_hash, 1.5 },
+    { "jen_hash", jen_hash, 1.5 },
     // { "jen_hash", jen_hash, 2.5 },
 
     // { "djb2_hash", djb2_hash, 1.0 },
-    // { "djb2_hash", djb2_hash, 1.5 },
+    { "djb2_hash", djb2_hash, 1.5 },
     // { "djb2_hash", djb2_hash, 2.5 },
 
     // { "sdbm_hash", sdbm_hash, 1.0 },
-    // { "sdbm_hash", sdbm_hash, 1.5 },
+    { "sdbm_hash", sdbm_hash, 1.5 },
     // { "sdbm_hash", sdbm_hash, 2.5 },
 
     // { "fnv_hash", fnv_hash, 1.0 },
-    // { "fnv_hash", fnv_hash, 1.5 },
+    { "fnv_hash", fnv_hash, 1.5 },
     // { "fnv_hash", fnv_hash, 2.5 },
 
-    // { "fnv_hash", fnv_hash, 1.0 },
-    // { "oat_hash", oat_hash, 1.5 },
+    { "oat_hash", oat_hash, 1.5 },
 
 
     { "", NULL, 0.0 },
@@ -599,7 +600,9 @@ int main( int argc, char **argv )
         which = atoi(argv[1]);
     }
 
-    wyhash_hash_init();
+    // init wyhash
+    fh_t f;
+    wyhash_hash_init(&f);
 
     printf("Tests are run on random keys\n");
 
@@ -626,7 +629,7 @@ int main( int argc, char **argv )
                 generate_random_str(1000+l, rkeys, 100, 350);
 
                 timing_start(t);
-                int hashval = hash_funs[i].hash_fun(rkeys) & (real_hash_size-1);
+                int hashval = hash_funs[i].hash_fun(&f, rkeys) & (real_hash_size-1);
                 delta = timing_end(t);
                 hash_calc_time = compute_average(hash_calc_time, l, delta);
                 if (coll[hashval] != 0 )
@@ -668,7 +671,7 @@ int main( int argc, char **argv )
                 generate_random_str(1000+l, rkeys, 10, 35);
                 // check if ua present in cache
                 timing_start(t);
-                int hashval = hash_funs[i].hash_fun(rkeys) & (real_hash_size-1);
+                int hashval = hash_funs[i].hash_fun(&f, rkeys) & (real_hash_size-1);
                 delta = timing_end(t);
                 hash_calc_time = compute_average(hash_calc_time, l, delta);
                 if (coll[hashval] != 0 )
