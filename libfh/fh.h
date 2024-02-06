@@ -176,9 +176,9 @@ int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func));
 
 // some hash functions provided
 // jsw_hash behaves good with strings
-uint64_t jsw_hash(char *);
+uint64_t jsw_hash(void *, char *);
 // low collisions
-uint64_t jen_hash(char *);
+uint64_t jen_hash(void *, char *);
 
 #ifdef __cplusplus
 }
