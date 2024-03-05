@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include "timing.h"
 #include "fh.h"
+#include "thp.h"
 
 #include "CommandLineParams.h"
 
@@ -557,4 +559,108 @@ TEST(FH, multithread_test_with_void_pointer)
     }
 
     free(savedata);
+}
+
+#define MAX_THREADS 64
+struct thread_stats
+{
+    int64_t fh_get_time;
+    double avg_time;
+    void *t; // for timing_new_timer(TIMING_NANOPRECISION);
+
+};
+struct thread_data
+{
+    int fh_size;
+    fh_t *f;
+    int thread_num;
+    int *rand_nums;
+    int cycles; // how many times we want to cycle on random values
+    struct thread_stats tstat[MAX_THREADS];
+};
+
+extern double  compute_average(double current_avg, int count, int new_value);
+
+// measure_fh_get_speed_thread
+void measure_fh_get_speed_thread(void *v)
+{
+    struct thread_data *td = (struct thread_data *) v;
+    int i = td->cycles;
+    double delta;
+    int error;
+    int count = 0;
+
+    while (i--) {
+        // generate random string
+        for (int j = 0; j < td->fh_size; j++)
+        {
+            string key = "key" + to_string(td->rand_nums[j]);
+            timing_start(td->tstat[td->thread_num].t);
+            char *value = (char *) fh_get(td->f, (char *) key.c_str(), &error);
+            delta = timing_end(td->tstat[td->thread_num].t);
+            if (error == FH_OK)
+            {
+                // test for correctness of value
+                string value_str = "value" + to_string(td->rand_nums[j]);
+                ASSERT_STREQ(value, value_str.c_str());
+            }
+            td->tstat[td->thread_num].fh_get_time += delta;
+            td->tstat[td->thread_num].avg_time = compute_average(td->tstat[td->thread_num].avg_time, count++, delta);
+        }
+    }
+}
+
+// a test to measure concurrent fh_get() speed with different number of threads
+TEST(FH, MultithreadGetSpeed)
+{
+    int err;
+    struct thread_data tdata = {0};
+    const int fh_size = 400000;
+    const int thp_size = 4;
+
+    fh_t *fh = fh_create(fh_size, FH_DATALEN_STRING, NULL);
+    ASSERT_NE(nullptr, fh);
+    tdata.rand_nums = (int *)malloc(sizeof(int) * fh_size);
+    tdata.cycles = 100;
+
+    // now fill the hash table with random keys and key md5 values
+    srand(0); // we want to be ablet to reproduce the results
+    for (int i = 0; i < fh_size; i++)
+    {
+        int rand_num = rand();
+        tdata.rand_nums[i] = rand_num;
+        string key = "key" + to_string(rand_num);
+        string value = "value" + to_string(rand_num);
+        fh_insert(fh, (char *) key.c_str(), (void *) value.c_str());
+    }
+    // create a thread pool with libthp
+    thp_h *thp = thp_create(NULL, thp_size, &err);
+    ASSERT_NE(nullptr, thp);
+
+    tdata.f = fh;
+    tdata.fh_size = fh_size;
+
+    // now run threads that will concurrently call fh_get()
+    for (int i = 0; i < thp_size; i++)
+    {
+        tdata.tstat[i].t = timing_new_timer(TIMING_NANOPRECISION);
+        tdata.thread_num = i;
+        thp_add(thp, measure_fh_get_speed_thread, (void *) &tdata);
+    }
+
+    // wait for all threads to finish
+    thp_wait(thp);
+    free(tdata.rand_nums);
+}
+
+double  compute_average(double current_avg, int count, int new_value)
+{
+    if ( count == 0 )
+    {
+        return (new_value);
+    }
+    else
+    {
+        return (((current_avg * count) + new_value) / (count+1));
+    }
 }
