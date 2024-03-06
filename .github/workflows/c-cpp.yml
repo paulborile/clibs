@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: make libtiming
+      run: cd libtiming ; make -f libtiming.mk releaseclean releaselinux debugclean debuglinux ; cd ../..
     - name: make libchannel
       run: cd libchannel ; make -f libch.mk releaseclean releaselinux debugclean debuglinux ; cd test ; make -f libch-test.mk testclean testlinux testrun ; cd ../..
     - name: make libvector
