@@ -624,6 +624,7 @@ void *measure_fh_get_speed_thread(void *v)
         }
     }
     free(v); // free the copy generated for this thread.
+    return NULL;
 }
 
 // a test to measure concurrent fh_get() speed with different number of threads
