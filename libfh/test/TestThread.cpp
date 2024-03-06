@@ -582,7 +582,7 @@ struct thread_data
 extern double  compute_average(double current_avg, int count, int new_value);
 
 // measure_fh_get_speed_thread
-void measure_fh_get_speed_thread(void *v)
+void *measure_fh_get_speed_thread(void *v)
 {
     struct thread_data *td = (struct thread_data *) v;
     int i = td->cycles;
@@ -613,7 +613,11 @@ void measure_fh_get_speed_thread(void *v)
             {
                 // test for correctness of value
                 string value_str = "value" + to_string(rand_place);
-                ASSERT_STREQ(value, value_str.c_str());
+                if (strcmp(value, value_str.c_str()) != 0)
+                {
+                    printf("Error: value for key %s is %s, should be %s\n", key.c_str(), value, value_str.c_str());
+                    return NULL;
+                }
             }
             td->tstat[td->thread_num].fh_get_time += delta;
             td->tstat[td->thread_num].avg_time = compute_average(td->tstat[td->thread_num].avg_time, count++, delta);
