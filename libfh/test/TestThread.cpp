@@ -602,7 +602,7 @@ void measure_fh_get_speed_thread(void *v)
             }
             else
             {
-            rand_place = td->rand_nums[j];
+                rand_place = td->rand_nums[j];
             }
 
             string key = "key" + to_string(rand_place);
