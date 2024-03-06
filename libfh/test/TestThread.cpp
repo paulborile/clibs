@@ -594,14 +594,25 @@ void measure_fh_get_speed_thread(void *v)
         // generate random string
         for (int j = 0; j < td->fh_size; j++)
         {
-            string key = "key" + to_string(td->rand_nums[j]);
+            int rand_place = 0;
+            if (j % 3 == 0)
+            {
+                // once every 3 items go completely casual
+                rand_place = rand() % td->fh_size;
+            }
+            else
+            {
+            rand_place = td->rand_nums[j];
+            }
+
+            string key = "key" + to_string(rand_place);
             timing_start(td->tstat[td->thread_num].t);
             char *value = (char *) fh_get(td->f, (char *) key.c_str(), &error);
             delta = timing_end(td->tstat[td->thread_num].t);
             if (error == FH_OK)
             {
                 // test for correctness of value
-                string value_str = "value" + to_string(td->rand_nums[j]);
+                string value_str = "value" + to_string(rand_place);
                 ASSERT_STREQ(value, value_str.c_str());
             }
             td->tstat[td->thread_num].fh_get_time += delta;
