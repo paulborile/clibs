@@ -1,0 +1,5 @@
+
+Interesting features to add : 
+
+
+- thp_set_attr() to allow setting some thread attributes like stack size
