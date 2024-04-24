@@ -308,38 +308,60 @@ TEST(FH, error_conditions)
 
     // All set attribute tests must be executed before first insert
     // Set attribute undefined
-    result = 0;
     result = fh_setattr(fhash, 200, 0);
     EXPECT_EQ(result, FH_BAD_ATTR);
 
     // Set attribute with invalid value (actually value isn't used, method returns always 1 that is operation executed)
-    result = 0;
     result = fh_setattr(fhash, FH_SETATTR_DONTCOPYKEY, 3000);
     EXPECT_EQ(result, 1);
 
     // Add an element with null key
-    result = 0;
     result = fh_insert(fhash, NULL, (void *)uno.c_str());
     EXPECT_EQ(result, FH_INVALID_KEY);
 
+    // Same but with fh_insertlock
+    value = (char *)fh_insertlock(fhash, NULL, (void *)uno.c_str(), &pos, &error);
+    EXPECT_EQ(FH_INVALID_KEY, error);
+
     // Add an element with empty key
-    result = 0;
     result = fh_insert(fhash, (char *)empty.c_str(), (void *)uno.c_str());
     EXPECT_EQ(result, 1); // empty key hash is forced to 1
 
+    // same but with fh_insertlock
+    value = (char *) fh_insertlock(fhash, (char *)empty.c_str(), (void *)uno.c_str(), &pos, &error);
+    EXPECT_EQ(error, FH_DUPLICATED_ELEMENT);
+
+    // fh_del empty
+    result = fh_del(fhash, (char *)empty.c_str());
+    EXPECT_EQ(result, 1);
+
+    value = (char *) fh_insertlock(fhash, (char *)empty.c_str(), (void *)uno.c_str(), &pos, &error);
+    EXPECT_EQ(pos, 1);
+    fh_releaselock(fhash, pos);
+
     // Add an element with null value
-    result = 0;
     result = fh_insert(fhash, (char *)chpippo.c_str(), NULL);
     EXPECT_GE(result, 0);
 
     // Add an element
-    result = 0;
     result = fh_insert(fhash, (char *)ch1.c_str(), (void *)uno.c_str());
     EXPECT_GE(result, 0);
 
     // Add an element with the same key of the first one, check error returned
     result = fh_insert(fhash, (char *)ch1.c_str(), (void *)uno.c_str());
     EXPECT_EQ(result, FH_DUPLICATED_ELEMENT);
+
+    // same for fh_insertlock
+    value = (char *)fh_insertlock(fhash, (char *)ch1.c_str(), (void *)uno.c_str(), &pos, &error);
+    EXPECT_EQ(error, FH_DUPLICATED_ELEMENT);
+
+    // add an elemet with fh_insertlock, and check if inserted
+    value = (char *)fh_insertlock(fhash, (char *)ch4.c_str(), (void *)quattro.c_str(), &pos, &error);
+    EXPECT_EQ(error, FH_OK);
+    fh_releaselock(fhash, pos);
+    char *value4 = NULL;
+    value4 = (char *)fh_get(fhash, (char *)ch4.c_str(), &error);
+    EXPECT_STREQ(quattro.c_str(), value4);
 
     // Get element not inserted, check error returned
     value = (char *)fh_get(fhash, (char *)ch2.c_str(), &error);
