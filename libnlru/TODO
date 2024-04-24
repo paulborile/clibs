@@ -1,0 +1,4 @@
+- There is no mutex in nlru so the only mutual exclusion we can use is from libfh. This means that all operations on ll
+should be done while the fh entry is locked i.e. 
+  . nlru_search() should fh_searchlock() and move
+  . nlru_add() should fh_insertlock() and get spare ll (free it if necessary), add it and move it to top
