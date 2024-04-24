@@ -630,7 +630,7 @@ void *writer(void *v)
     // all have finished
     if ( t->thread_number == 0 )
     {
-        this_thread::sleep_for(chrono::seconds(1)); // coarse way of letting all other writers thread terminate
+        this_thread::sleep_for(chrono::seconds(3)); // coarse way of letting all other writers thread terminate
         for (int i =0; i<t->num_reader; i++)
         {
             ch_put(t->ch, CH_ENDOFTRANSMISSION);
