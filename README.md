@@ -212,7 +212,7 @@ int main(int argc, char **argv)
 To compile the liblru and test it :
 
 ```
-cd liblru ; make -f liblru.mk clean lib
+cd liblru ; make -f liblru.mk releaseclean releaselinux debugclean debuglinux
 cd test ; make ; ./lrutest <lrusize>
 
 ```
