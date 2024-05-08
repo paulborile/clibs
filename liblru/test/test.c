@@ -1,9 +1,10 @@
 #include <stdio.h>
+#include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <time.h>
 #include <pthread.h>
-
 
 #include    "lru.h"
 #include    "timing.h"
