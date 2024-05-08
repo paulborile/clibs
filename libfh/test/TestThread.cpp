@@ -6,6 +6,8 @@
 
 #include "CommandLineParams.h"
 
+#include <algorithm> // for std::find_if
+#include <cctype>    // for std::isspace
 #include <fstream>
 #include <pthread.h>
 using namespace std;
