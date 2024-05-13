@@ -290,6 +290,7 @@ TEST(FH, error_conditions)
     char stringa[DIM];
     fh_t *fhash = NULL;
     int pos = 0, result = 0, error = 0, attribute = 0;
+    void *opaque_obj_ptr = NULL;
 
     // Create hash table of strings
     fhash = fh_create(20, FH_DATALEN_STRING, NULL);
@@ -320,7 +321,7 @@ TEST(FH, error_conditions)
     EXPECT_EQ(result, FH_INVALID_KEY);
 
     // Same but with fh_insertlock
-    value = (char *)fh_insertlock(fhash, NULL, (void *)uno.c_str(), &pos, &error);
+    value = (char *)fh_insertlock(fhash, NULL, (void *)uno.c_str(), &pos, &error, &opaque_obj_ptr);
     EXPECT_EQ(FH_INVALID_KEY, error);
 
     // Add an element with empty key
@@ -328,15 +329,16 @@ TEST(FH, error_conditions)
     EXPECT_EQ(result, 1); // empty key hash is forced to 1
 
     // same but with fh_insertlock
-    value = (char *) fh_insertlock(fhash, (char *)empty.c_str(), (void *)uno.c_str(), &pos, &error);
+    value = (char *) fh_insertlock(fhash, (char *)empty.c_str(), (void *)uno.c_str(), &pos, &error, &opaque_obj_ptr);
     EXPECT_EQ(error, FH_DUPLICATED_ELEMENT);
 
     // fh_del empty
     result = fh_del(fhash, (char *)empty.c_str());
     EXPECT_EQ(result, 1);
 
-    value = (char *) fh_insertlock(fhash, (char *)empty.c_str(), (void *)uno.c_str(), &pos, &error);
+    value = (char *) fh_insertlock(fhash, (char *)empty.c_str(), (void *)uno.c_str(), &pos, &error, &opaque_obj_ptr);
     EXPECT_EQ(pos, 1);
+    const char *uno_ptr = uno.c_str();
     fh_releaselock(fhash, pos);
 
     // Add an element with null value
@@ -352,11 +354,11 @@ TEST(FH, error_conditions)
     EXPECT_EQ(result, FH_DUPLICATED_ELEMENT);
 
     // same for fh_insertlock
-    value = (char *)fh_insertlock(fhash, (char *)ch1.c_str(), (void *)uno.c_str(), &pos, &error);
+    value = (char *)fh_insertlock(fhash, (char *)ch1.c_str(), (void *)uno.c_str(), &pos, &error, &opaque_obj_ptr);
     EXPECT_EQ(error, FH_DUPLICATED_ELEMENT);
 
     // add an elemet with fh_insertlock, and check if inserted
-    value = (char *)fh_insertlock(fhash, (char *)ch4.c_str(), (void *)quattro.c_str(), &pos, &error);
+    value = (char *)fh_insertlock(fhash, (char *)ch4.c_str(), (void *)quattro.c_str(), &pos, &error, &opaque_obj_ptr);
     EXPECT_EQ(error, FH_OK);
     fh_releaselock(fhash, pos);
     char *value4 = NULL;
@@ -397,7 +399,7 @@ TEST(FH, error_conditions)
     // Search element with buffer NULL
     result = 0;
     result = fh_search(fhash, (char *)ch1.c_str(), NULL, DIM);
-    EXPECT_EQ(result, FH_BUFFER_NULL);
+    EXPECT_EQ(result, FH_INVALID_ARGUMENT);
 
     // Search element with negative dimension
     result = 0;
@@ -412,6 +414,82 @@ TEST(FH, error_conditions)
     // Destroy hash table
     fh_destroy(fhash);
 }
+
+// Check specifics of fh_insertlock method
+TEST(FH, insert_lock_voidp)
+{
+    char *opaque_obj_ptr = NULL;
+    char *key = "key";
+    char *opaque_obj = "opaque_obj";
+    char *new_opaque_obj = "new_opaque_obj";
+    char *value = NULL;
+    int pos = 0, error = 0;
+
+    // Create VOIDP hash table
+    fh_t *fhash = fh_create(20, FH_DATALEN_VOIDP, NULL);
+    ASSERT_NE((fh_t *)0, fhash);
+
+    value = (char *)fh_insertlock(fhash, (char *) key, (void *) opaque_obj, &pos, &error, (void **) &opaque_obj_ptr);
+    EXPECT_EQ(error, FH_OK);
+    // now I can change the opaque object of this entry to point to new opaque object
+    *opaque_obj_ptr = (char *) new_opaque_obj;
+    fh_releaselock(fhash, pos);
+
+    // now fh_get should return the new opaque object
+    EXPECT_EQ(new_opaque_obj, (char *)fh_get(fhash, key, &error));
+
+    fh_destroy(fhash);
+
+    // does not work for hashtables different from FH_DATALEN_VOIDP
+
+    // Create STRING hash table
+    fhash = fh_create(20, FH_DATALEN_STRING, NULL);
+    ASSERT_NE((fh_t *)0, fhash);
+
+    value = (char *)fh_insertlock(fhash, key, opaque_obj, &pos, &error, (void **) &opaque_obj_ptr);
+    EXPECT_EQ(error, FH_OK);
+    // now I can change the opaque object of this entry to point to new opaque object
+    EXPECT_EQ(opaque_obj_ptr, NULL);
+    fh_releaselock(fhash, pos);
+
+    fh_destroy(fhash);
+}
+
+// same as above but this time with struct
+TEST(FH, insert_lock_voidp_struct)
+{
+    // again with VOIDP with struct
+
+    typedef struct _payload_t {
+        char *k;
+        void *slot;
+        void *o;
+    } payload_t;
+
+    payload_t *opq_obj_ptr = NULL;
+    char *key = "key";
+    payload_t *opq_obj = {0};
+    payload_t *new_opq_obj = {0};
+    payload_t *opq_value = NULL;
+    int pos = 0, error = 0;
+
+    fh_t *fhash = fh_create(20, FH_DATALEN_VOIDP, NULL);
+    ASSERT_NE((fh_t *)0, fhash);
+
+    opq_value = (payload_t *)fh_insertlock(fhash, (char *) key, (void *) opq_obj, &pos, &error, (void **) &opq_obj_ptr);
+    EXPECT_EQ(error, FH_OK);
+    // now I can change the opaque object of this entry to point to new opaque object
+    payload_t **pload = (payload_t **) opq_obj_ptr;
+    *pload = (payload_t *) new_opq_obj;
+    fh_releaselock(fhash, pos);
+
+    // now fh_get should return the new opaque object
+    EXPECT_EQ(new_opq_obj, (char *)fh_get(fhash, key, &error));
+
+    fh_destroy(fhash);
+
+}
+
 
 /// Create hashtable, put something in it, then destroy it. Try to access with all the methods and get BAD_HANDLE from everyone
 TEST(FH, check_after_destroy)

@@ -159,6 +159,8 @@ void *del_and_insert(void *param)
     cout << "Start del and insert thread" << endl;
     int error;
     int pos;
+    void *opaque_obj_ptr = NULL;
+
 
     int nelem = 0;
     fh_getattr(fhash, FH_ATTR_ELEMENT, &nelem);
@@ -189,7 +191,7 @@ void *del_and_insert(void *param)
                 // every pair element use fh_insertlock instead of fh_insert
                 if (ind % 2 == 0)
                 {
-                    char *value = (char *) fh_insertlock(fhash, savedata[ind].key, savedata[ind].opaque_obj, &pos, &error);
+                    char *value = (char *) fh_insertlock(fhash, savedata[ind].key, savedata[ind].opaque_obj, &pos, &error, &opaque_obj_ptr);
                     // do something to waste some time before release lock
                     struct timespec t;
                     t.tv_sec = 0;
