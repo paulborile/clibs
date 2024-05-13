@@ -2,8 +2,7 @@
 
 ### 1.0.2 Mar 2024
 
-- fixes to liblru for new libfh
-- removed critical section on elements : we don't care if not super correct under concurrent access
+- removed critical section on elements number : we don't care if not super correct under concurrent access
 - added fh_insertlock() : allow insert and manipulation of opaque under critical section
 - fixes to libchannel : ch_get() in blocking mode should loop in cond_wait()
 
