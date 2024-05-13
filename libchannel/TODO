@@ -1,0 +1,5 @@
+Interesting features to implement : 
+
+- set a maximum size of channel : ch_put() on a full channel should block waiting for consumer to drain.
+Currenlty size is infinite, limited only by memory and if  producer is faster than consumer the channel will end up using all the memory
+

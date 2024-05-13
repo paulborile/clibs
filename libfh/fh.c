@@ -22,7 +22,7 @@
 #include  "wyhash.h"
 
 // version
-static char version[] = "1.0.1";
+static char version[] = "1.0.2";
 
 static void wyhash_hash_init(fh_t *fh)
 {
@@ -107,9 +107,6 @@ fh_t *fh_create(int dim, int datalen, fh_hash_fun hash_function)
     f->h_dim = real_dim;
     f->h_datalen = datalen;
 
-    // init elements/collisions critical region mutex
-    pthread_mutex_init(&(f->fh_lock), NULL);
-
     f->h_elements = 0;
     f->h_collision = 0;
 
@@ -177,15 +174,6 @@ static void _fh_unlock(fh_t *fh, int slot)
     pthread_mutex_unlock(&(fh->h_lock[slot % fh->n_lock]));
 }
 
-static void _fh_lock_fh(fh_t *fh)
-{
-    pthread_mutex_lock(&(fh->fh_lock));
-}
-
-static void _fh_unlock_fh(fh_t *fh)
-{
-    pthread_mutex_unlock(&(fh->fh_lock));
-}
 
 //static void _fh_lock_all(fh_t *fh)
 //{
@@ -233,9 +221,7 @@ int fh_getattr(fh_t *fh, int attr, int *value)
     switch (attr)
     {
     case FH_ATTR_ELEMENT:
-        _fh_lock_fh(fh);
         (*value) = fh->h_elements;
-        _fh_unlock_fh(fh);
         break;
     case FH_ATTR_DIM:
         (*value) = fh->h_dim;
@@ -319,7 +305,7 @@ int fh_destroy(fh_t *fh)
     fh_clean(fh, NULL);
     // remove all entries
 
-    // dealloco hash table
+    // dealloc hash table
     free(fh->hash_table);
 
     // free every single mutex
@@ -331,9 +317,7 @@ int fh_destroy(fh_t *fh)
     // Free mutex pool
     free(fh->h_lock);
 
-    pthread_mutex_destroy(&fh->fh_lock);
-
-    // dealloco struct hash info
+    // dealloc struct hash info
     free(fh);
 
     return (FH_OK);
@@ -473,12 +457,156 @@ int fh_insert(fh_t *fh, char *key, void *block)
 
     _fh_unlock(fh, i);
 
-    _fh_lock_fh(fh);
-    (fh->h_elements)++;
-    _fh_unlock_fh(fh);
+    fh->h_elements++;
 
     return (i);
 }
+
+// like insert but will return pointer (and address) to opaque data just inserted and keep the slot locked
+// will also return locked_slot for further use with fh_releaselock()
+// be carefull with opaque_obj : should be used only on VOIDP type hashtables (will only be copied in that case)
+// you can change the payload of the hash slot with this variable
+void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *error, void **opaque_obj_addr)
+{
+    uint64_t hash_index;
+    fh_bucket *bucket = NULL;
+    fh_slot *found_h_slot = NULL;
+    void *new_opaque_obj = NULL;
+    
+    if (!fh || fh->h_magic != FH_MAGIC_ID)
+    {
+        *error = FH_BAD_HANDLE;
+        return NULL;
+    }
+
+    if (key == NULL)
+    {
+        *error = FH_INVALID_KEY;
+        return NULL;
+    }
+
+    // if no address for locked_slot is given we can't continue
+    if (locked_slot == NULL)
+    {
+        *error = FH_INVALID_ARGUMENT;
+        return NULL;
+    }
+
+    if (opaque_obj_addr != NULL)
+    {
+        *opaque_obj_addr = NULL;
+    }
+
+    // looking for slot
+
+    uint64_t h = fh->hash_function(fh, key);
+    uint8_t mini_hash;
+    MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
+    hash_index = h & (fh->h_dim -1);
+
+    _fh_lock(fh, hash_index);
+
+    assert(hash_index<(uint64_t)fh->h_dim);
+
+    bucket = fh->hash_table[hash_index].h_bucket;
+
+    if (bucket != NULL)
+    {
+        (fh->h_collision)++;
+    }
+
+    // if bucket == NULL we need to allocate the first entry
+    if ( bucket == NULL )
+    {
+        bucket = fh->hash_table[hash_index].h_bucket = _fh_allocate_bucket();
+        if ( bucket == NULL )
+        {
+            _fh_unlock(fh, hash_index);
+            *error = FH_NO_MEMORY;
+            return NULL;
+        }
+    }
+    //  find a place in bucket for new key/value
+
+    // returns fh_slot * - if opaque is not null it is a duplicate key
+    found_h_slot = _fh_return_empty_slot_in_bucket(bucket, key, mini_hash);
+    if (found_h_slot == NULL)
+    {
+        _fh_unlock(fh, hash_index);
+        *error = FH_NO_MEMORY;
+        return NULL;
+    }
+
+    // returning an occupied slot mean duplicated entry
+    if ( found_h_slot->key != NULL )
+    {
+        // we have a duplicate key
+        _fh_unlock(fh, hash_index);
+        *error = FH_DUPLICATED_ELEMENT;
+        return NULL;
+    }
+
+    // allocate and copy key
+    if ( fh->h_attr & FH_SETATTR_DONTCOPYKEY )
+    {
+        found_h_slot->key = key;
+    }
+    else
+    {
+        found_h_slot->key = strdup(key);
+        if (found_h_slot->key == NULL)
+        {
+            _fh_unlock(fh, hash_index);
+            *error = FH_NO_MEMORY;
+            return NULL;
+        }
+    }
+
+    // allocate and copy opaque object
+
+    if ( block != NULL )
+    {
+        // datalen contains a positive value = fixed size opaque_obj
+        if ( fh->h_datalen > 0 )
+        {
+            new_opaque_obj = malloc(fh->h_datalen);
+            if (new_opaque_obj == NULL)
+            {
+                _fh_unlock(fh, hash_index);
+                *error = FH_NO_MEMORY;
+                return NULL;
+            }
+            memcpy(new_opaque_obj, block, fh->h_datalen);
+        }
+        else if ( fh->h_datalen == FH_DATALEN_VOIDP ) // datalen 0 means just copy opaque pointers
+        {
+            new_opaque_obj = block;
+        }
+        else if ( fh->h_datalen == FH_DATALEN_STRING ) // datalen = -1 => opaque is string
+        {
+            new_opaque_obj = strdup(block);
+            if (new_opaque_obj == NULL)
+            {
+                _fh_unlock(fh, hash_index);
+                *error = FH_NO_MEMORY;
+                return NULL;
+            }
+        }
+
+        found_h_slot->opaque_obj = new_opaque_obj;
+    }
+
+    fh->h_elements++;
+
+    *error = FH_OK;
+    *locked_slot = hash_index;
+    if ((opaque_obj_addr != NULL) && (fh->h_datalen == FH_DATALEN_VOIDP))
+    {
+        *opaque_obj_addr = &(found_h_slot->opaque_obj);
+    }
+    return found_h_slot->opaque_obj;
+}
+
 
 // _fh_return_empty_slot_in_bucket() - looks for an empty space in bucket chain
 // if needed allocates it, mini_hash is set on new empty entry
@@ -541,9 +669,7 @@ int fh_del(fh_t *fh, char *key)
 
     if (rc != FH_ELEMENT_NOT_FOUND)
     {
-        _fh_lock_fh(fh);
-        (fh->h_elements)--;
-        _fh_unlock_fh(fh);
+        fh->h_elements--;
     }
 
     return (rc);
@@ -563,9 +689,7 @@ int fh_dellocked(fh_t *fh, char *key, int locked_bucket)
 
     if (rc != FH_ELEMENT_NOT_FOUND)
     {
-        _fh_lock_fh(fh);
-        (fh->h_elements)--;
-        _fh_unlock_fh(fh);
+        fh->h_elements--;
     }
 
     return (rc);
@@ -693,7 +817,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
     if (!block)
-        return(FH_BUFFER_NULL);
+        return(FH_INVALID_ARGUMENT);
 
     if ( fh->h_datalen == FH_DATALEN_VOIDP )
     {

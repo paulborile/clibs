@@ -1,6 +1,12 @@
 # Changelog
 
-## 1.0.1 Sept Jan 2024
+### 1.0.2 Mar 2024
+
+- removed critical section on elements number : we don't care if not super correct under concurrent access
+- added fh_insertlock() : allow insert and manipulation of opaque under critical section
+- fixes to libchannel : ch_get() in blocking mode should loop in cond_wait()
+
+## 1.0.1 Jan 2024
 
 - fixed seeding (was not working properly). Tests now show taht seeding works
 - breaking change on the hashfun signature. Additional void * used to pass fh_t where seed/secret is kept

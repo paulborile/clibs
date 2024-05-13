@@ -1,0 +1,13 @@
+- There is no mutex in nlru so the only mutual exclusion we can use is from libfh. This means that all operations on ll
+should be done while the fh entry is locked i.e. 
+  . nlru_search() should fh_searchlock() and move
+  . nlru_add() should fh_insertlock() and get spare ll (free it if necessary), add it and move it to top.
+  Since all payload_t are allocated in LL and we need to call fh_insertlock() and only after this get a free payload we new sequence of
+  operation is : 
+  
+Considerations : 
+1. benefits from preallocated objects (ll) not sure if outperform the complexity related to synchronous freeing/reusing that the model implies
+2. cache check implies also updating the "used" attribute of the entry : could this be done asynchronously ?
+3. cache add implies also evicting an object (is full) before/after having inserted a new one : could this be done asynchronously ?
+4. Using RW mutexes could improve performance by reducing contention (this should be done in libfh as well) 
+

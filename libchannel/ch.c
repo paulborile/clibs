@@ -169,25 +169,26 @@ int ch_get(ch_h *ch, void *block)
 
     _ch_lock(ch);
 
-    if (ch->count == 0)
+    if ((ch->count == 0) && ((ch->attr & CH_ATTR_BLOCKING_GET) != CH_ATTR_BLOCKING_GET))
     {
-        if ((ch->attr & CH_ATTR_BLOCKING_GET) != CH_ATTR_BLOCKING_GET)
-        {
-            _ch_unlock(ch);
-            return CH_GET_NODATA;
-        }
+        // non blocking mode, if channel is emptry return CH_GET_NODATA
+        _ch_unlock(ch);
+        return CH_GET_NODATA;
+    }
 
+    while (ch->count == 0)
+    {
         ch->waiting_threads++;
         pthread_cond_wait(&(ch->ch_condvar), &(ch->ch_mutex));
         ch->waiting_threads--;
 
-        if (ch->count == 0)
-        {
-            // fifo empty after pthread_cond_signal
-            // some error condition to check
-            _ch_unlock(ch);
-            return CH_GET_NODATA;
-        }
+        // if (ch->count == 0)
+        // {
+        //     // fifo empty after pthread_cond_signal
+        //     // some error condition to check
+        //     _ch_unlock(ch);
+        //     return CH_GET_NODATA;
+        // }
     }
 
     element = ch->head;

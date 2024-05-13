@@ -14,10 +14,10 @@ DOBJ = $(SRC:.c=.do)
 MOBJ = $(SRC:.c=.mo)
 COBJ = $(SRC:.c=.co)
 
-CFLAGS = -DNDEBUG -O3 -fPIC --std=c99 -Wall -Wextra -Wcomment -pthread -I . $(RELEASE_CFLAGS)
-CFLAGS_DEBUG = -DDEBUG -g3 $(SANITIZE) -O0 -fPIC --std=c99 -Wall -Wextra -Wcomment -pthread -I . $(DEBUG_CFLAGS)
-CFLAGS_DEBUG_MACOSX = -DDEBUG -g3 $(SANITIZE) -O0 -fPIC --std=c99 -Wall -Wextra -Wcomment -pthread -I . $(DEBUG_CFLAGS)
-CFLAGS_COVERAGE = -DDEBUG -g3 $(SANITIZE) -O0 --coverage -fPIC --std=c99 -Wall -Wextra -Wcomment -pthread -I . $(DEBUG_CFLAGS)
+CFLAGS = -DNDEBUG -O3 -fPIC --std=gnu99 -Wall -Wextra -Wcomment -pthread -I . $(RELEASE_CFLAGS)
+CFLAGS_DEBUG = -DDEBUG -g3 $(SANITIZE) -O0 -fPIC --std=gnu99 -Wall -Wextra -Wcomment -pthread -I . $(DEBUG_CFLAGS)
+CFLAGS_DEBUG_MACOSX = -DDEBUG -g3 $(SANITIZE) -O0 -fPIC --std=gnu99 -Wall -Wextra -Wcomment -pthread -I . $(DEBUG_CFLAGS)
+CFLAGS_COVERAGE = -DDEBUG -g3 $(SANITIZE) -O0 --coverage -fPIC --std=gnu99 -Wall -Wextra -Wcomment -pthread -I . $(DEBUG_CFLAGS)
 
 ARFLAGS = crs
 

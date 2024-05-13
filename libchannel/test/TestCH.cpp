@@ -630,7 +630,7 @@ void *writer(void *v)
     // all have finished
     if ( t->thread_number == 0 )
     {
-        this_thread::sleep_for(chrono::seconds(1)); // coarse way of letting all other writers thread terminate
+        this_thread::sleep_for(chrono::seconds(3)); // coarse way of letting all other writers thread terminate
         for (int i =0; i<t->num_reader; i++)
         {
             ch_put(t->ch, CH_ENDOFTRANSMISSION);
@@ -653,7 +653,9 @@ void *reader(void *v)
         }
         else
         {
-            //printf("reader %d, error %d in ch_get\n", t->thread_number, rc);
+            // this condition should never happen : in blocking mode ch_get() should
+            // always return CH_OK or CH_GET_ENDOFTRANSMISSION. We should loop in cond_wait()
+            printf("reader %d, error %d in ch_get\n", t->thread_number, rc);
         }
     }
 
@@ -670,7 +672,7 @@ TEST(CH, MT_N_Writer_M_Reader)
     ch = (ch_h *)ch_create(NULL, CH_DATALEN_VOIDP);
     ASSERT_NE((ch_h *)0, ch);
 
-#define NUM_READER 5
+#define NUM_READER 8
 #define NUM_WRITER 2
 #define NUM_MESSAGES (1000000 * NUM_READER)
 

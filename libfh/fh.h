@@ -41,7 +41,7 @@ extern "C" {
 #define FH_ELEMENT_NOT_FOUND    -2000 // hash element not found
 #define FH_DUPLICATED_ELEMENT   -3000 // duplicated key
 #define FH_NO_MEMORY        -4000 // malloc/calloc fails
-#define FH_BUFFER_NULL      -5000 // buffer passed null (fh_search)
+#define FH_INVALID_ARGUMENT      -5000 // buffer passed null (fh_search)
 #define FH_WRONG_DATALEN    -6000 // wrong datalen for fh_search, use fh_get
 #define FH_DIM_INVALID      -7000 // bad dimension
 #define FH_BAD_ATTR         -9000 // bad attribute to get/setattr
@@ -100,7 +100,6 @@ struct _fh_t {
     int h_magic;
     int h_dim;  // hash size
     int h_datalen;  // opaque_obj size : -1 for strings, 0 for pointers, > 0 for data
-    pthread_mutex_t fh_lock;
     int h_elements;  // elements in hash
     int h_collision;  // collisions during insert
     int h_attr;  // holding attributes
@@ -131,12 +130,11 @@ int fh_search(fh_t *fh, char *key, void *opaque, int opaque_size);
 // search and return pointer to internal allocated data
 void *fh_get(fh_t *fh, char *key, int *error);
 
-int fh_scan_start(fh_t *fh, int pos, void **slot);
-// scans and copies out data
-int fh_scan_next(fh_t *fh, int *pos, void **slot, char *key, void *opaque, int opaque_size);
-// experimental
-void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error);
-// fh_dellocked - remove item from locked hash slot
+// like fh_get but returns pointer to opaque on a locked slot (return locked slot as well for later fh_releaselock)
+void *fh_searchlock(fh_t *fh, char *key, int *locked_slot, int *error);
+// like fh_insert but return pointer to opaque data inserted locked : allows to modify opaque data while inserting
+void *fh_insertlock(fh_t *fh, char *key, void *opaque, int *locked_slot, int *error, void **opaque_obj);
+// fh_dellocked - remove item from a locked hash slot (returned by fh_searchlock)
 int fh_dellocked(fh_t *fh, char *key, int locked_slot);
 int fh_releaselock(fh_t *fh, int slot);
 

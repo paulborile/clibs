@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <time.h>
 
 #include "timing.h"
 #include "fh.h"
@@ -10,6 +11,9 @@
 #include <cctype>    // for std::isspace
 #include <fstream>
 #include <pthread.h>
+#include <thread>
+#include <chrono>
+
 using namespace std;
 
 fh_t *fhash = NULL;
@@ -155,6 +159,10 @@ void *del_and_insert(void *param)
 {
     int numloop = *((int *)param);
     cout << "Start del and insert thread" << endl;
+    int error;
+    int pos;
+    void *opaque_obj_ptr = NULL;
+
 
     int nelem = 0;
     fh_getattr(fhash, FH_ATTR_ELEMENT, &nelem);
@@ -168,7 +176,7 @@ void *del_and_insert(void *param)
         {
             for (int ind = 0; ind < nelem; ind++)
             {
-                int error = fh_del(fhash, savedata[ind].key);
+                error = fh_del(fhash, savedata[ind].key);
 
                 if (error < 0)
                 {
@@ -176,13 +184,32 @@ void *del_and_insert(void *param)
                 }
             }
 
-//           cout << "Deletion completed!" << endl;
+            cout << "Deletion completed!" << endl;
         }
         else
         {
             for (int ind = 0; ind < nelem; ind++)
             {
-                int error = fh_insert(fhash, savedata[ind].key, savedata[ind].opaque_obj);
+                // every pair element use fh_insertlock instead of fh_insert
+                if (ind % 2 == 0)
+                {
+                    char *value = (char *) fh_insertlock(fhash, savedata[ind].key, savedata[ind].opaque_obj, &pos, &error, &opaque_obj_ptr);
+                    // do something to waste some time before release lock
+                    struct timespec t;
+                    t.tv_sec = 0;
+                    t.tv_nsec = 1000; // 1 micro = 1,000 nanoseconds
+
+                    nanosleep(&t, NULL);
+
+                    if (error == FH_OK)
+                    {
+                        fh_releaselock(fhash, pos);
+                    }
+                }
+                else
+                {
+                    int error = fh_insert(fhash, savedata[ind].key, savedata[ind].opaque_obj);
+                }
 
                 if (error < 0)
                 {
@@ -190,7 +217,7 @@ void *del_and_insert(void *param)
                 }
             }
 
-//            cout << "Insertion completed!" << endl;
+            cout << "Insertion completed!" << endl;
         }
     }
 
@@ -338,8 +365,8 @@ TEST(FH, multithread_test)
     fh_enum_destroy(fhe);
 
     // Launch threads that work together on the same hash table
-    int numexecsmall = 100;
-    int numexec = 3000;
+    int numexecsmall = 5;
+    int numexec = 30000;
     pthread_t threads[3];
     void *retval;
     pthread_create(&threads[0], NULL, &del_and_insert, (void *)&numexecsmall);

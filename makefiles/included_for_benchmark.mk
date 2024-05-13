@@ -10,8 +10,8 @@ OBJ = $(SRC:.c=.o)
 DOBJ = $(SRC:.c=.do)
 
 INCLUDE_DIRS = -I ../../include -I.. -I../../libtiming
-CFLAGS = -O3 -fPIC --std=c99 -Wall -Wextra -Wcomment -pthread $(INCLUDE_DIRS) $(LOCAL_CFLAGS)
-CFLAGS_DEBUG = -O0 -g3 -fPIC --std=c99 -Wall -Wextra -Wcomment -pthread $(INCLUDE_DIRS) $(LOCAL_CFLAGS)
+CFLAGS = -O3 -fPIC --std=gnu99 -Wall -Wextra -Wcomment -pthread $(INCLUDE_DIRS) $(LOCAL_CFLAGS)
+CFLAGS_DEBUG = -O0 -g3 -fPIC --std=gnu99 -Wall -Wextra -Wcomment -pthread $(INCLUDE_DIRS) $(LOCAL_CFLAGS)
 
 LIBS = -L../../lib -L.. -L../../libtiming -l$(LIB) -ltiming -lpthread
 LIBS_DEBUG = -L../../lib -L.. -L../../libtiming -l$(LIB)-debug -ltiming -lpthread
