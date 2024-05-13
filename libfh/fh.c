@@ -462,11 +462,13 @@ int fh_insert(fh_t *fh, char *key, void *block)
     return (i);
 }
 
-// like insert but will return pointer to opaque data just inserted and keep the slot locked
+// like insert but will return pointer (and address) to opaque data just inserted and keep the slot locked
 // will also return locked_slot for further use with fh_releaselock()
-void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *error)
+// be carefull with opaque_obj : should be used only on VOIDP type hashtables (will only be copied in that case)
+// you can change the payload of the hash slot with this variable
+void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *error, void **opaque_obj_addr)
 {
-    uint64_t i;
+    uint64_t hash_index;
     fh_bucket *bucket = NULL;
     fh_slot *found_h_slot = NULL;
     void *new_opaque_obj = NULL;
@@ -477,10 +479,22 @@ void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *err
         return NULL;
     }
 
-    if (!key)
+    if (key == NULL)
     {
         *error = FH_INVALID_KEY;
         return NULL;
+    }
+
+    // if no address for locked_slot is given we can't continue
+    if (locked_slot == NULL)
+    {
+        *error = FH_INVALID_ARGUMENT;
+        return NULL;
+    }
+
+    if (opaque_obj_addr != NULL)
+    {
+        *opaque_obj_addr = NULL;
     }
 
     // looking for slot
@@ -488,13 +502,13 @@ void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *err
     uint64_t h = fh->hash_function(fh, key);
     uint8_t mini_hash;
     MAKE_MINIHASH(h, mini_hash); // get the 8 most sign bits
-    i = h & (fh->h_dim -1);
+    hash_index = h & (fh->h_dim -1);
 
-    _fh_lock(fh, i);
+    _fh_lock(fh, hash_index);
 
-    assert(i<(uint64_t)fh->h_dim);
+    assert(hash_index<(uint64_t)fh->h_dim);
 
-    bucket = fh->hash_table[i].h_bucket;
+    bucket = fh->hash_table[hash_index].h_bucket;
 
     if (bucket != NULL)
     {
@@ -504,10 +518,10 @@ void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *err
     // if bucket == NULL we need to allocate the first entry
     if ( bucket == NULL )
     {
-        bucket = fh->hash_table[i].h_bucket = _fh_allocate_bucket();
+        bucket = fh->hash_table[hash_index].h_bucket = _fh_allocate_bucket();
         if ( bucket == NULL )
         {
-            _fh_unlock(fh, i);
+            _fh_unlock(fh, hash_index);
             *error = FH_NO_MEMORY;
             return NULL;
         }
@@ -518,7 +532,7 @@ void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *err
     found_h_slot = _fh_return_empty_slot_in_bucket(bucket, key, mini_hash);
     if (found_h_slot == NULL)
     {
-        _fh_unlock(fh, i);
+        _fh_unlock(fh, hash_index);
         *error = FH_NO_MEMORY;
         return NULL;
     }
@@ -527,7 +541,7 @@ void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *err
     if ( found_h_slot->key != NULL )
     {
         // we have a duplicate key
-        _fh_unlock(fh, i);
+        _fh_unlock(fh, hash_index);
         *error = FH_DUPLICATED_ELEMENT;
         return NULL;
     }
@@ -542,7 +556,7 @@ void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *err
         found_h_slot->key = strdup(key);
         if (found_h_slot->key == NULL)
         {
-            _fh_unlock(fh, i);
+            _fh_unlock(fh, hash_index);
             *error = FH_NO_MEMORY;
             return NULL;
         }
@@ -558,7 +572,7 @@ void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *err
             new_opaque_obj = malloc(fh->h_datalen);
             if (new_opaque_obj == NULL)
             {
-                _fh_unlock(fh, i);
+                _fh_unlock(fh, hash_index);
                 *error = FH_NO_MEMORY;
                 return NULL;
             }
@@ -573,7 +587,7 @@ void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *err
             new_opaque_obj = strdup(block);
             if (new_opaque_obj == NULL)
             {
-                _fh_unlock(fh, i);
+                _fh_unlock(fh, hash_index);
                 *error = FH_NO_MEMORY;
                 return NULL;
             }
@@ -585,7 +599,11 @@ void *fh_insertlock(fh_t *fh, char *key, void *block, int *locked_slot, int *err
     fh->h_elements++;
 
     *error = FH_OK;
-    *locked_slot = i;
+    *locked_slot = hash_index;
+    if ((opaque_obj_addr != NULL) && (fh->h_datalen == FH_DATALEN_VOIDP))
+    {
+        *opaque_obj_addr = &(found_h_slot->opaque_obj);
+    }
     return found_h_slot->opaque_obj;
 }
 
@@ -799,7 +817,7 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
     if (!block)
-        return(FH_BUFFER_NULL);
+        return(FH_INVALID_ARGUMENT);
 
     if ( fh->h_datalen == FH_DATALEN_VOIDP )
     {
