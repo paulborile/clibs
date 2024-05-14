@@ -45,13 +45,15 @@ struct _ch_h
     short allocated;
     int datalen;
     int count;
+    int max_size; // maximum size of channel
     int attr;
     ch_elem_t *head;
     ch_elem_t *tail;
     pthread_mutex_t ch_mutex;
-    pthread_cond_t ch_condvar;
-    int waiting_threads;
-    void (*free_fun)(); // USed ??
+    pthread_cond_t ch_get_condvar;
+    pthread_cond_t ch_put_condvar;
+    int get_waiting_threads;
+    int put_waiting_threads;
 };
 typedef struct _ch_h ch_h;
 
@@ -70,6 +72,7 @@ typedef int ch_opaque_delete_func (void *);
 #define CH_GET_NODATA -6
 #define CH_GET_ENDOFTRANSMISSION -7
 #define CH_FREE_NOT_REQUESTED -8
+#define CH_PUT_CHANNEL_FULL -9 // max_size reached and non blocking mode is set
 
 // ch_create datalen types
 #define CH_DATALEN_STRING -1
@@ -78,9 +81,11 @@ typedef int ch_opaque_delete_func (void *);
 // attribute names
 #define CH_BLOCKING_MODE 100
 #define CH_COUNT 200
+#define CH_FIXED_SIZE 300
 // attributes values
-#define CH_ATTR_NON_BLOCKING_GET 0
-#define CH_ATTR_BLOCKING_GET 1
+#define CH_ATTR_NON_BLOCKING_GETPUT 0
+#define CH_ATTR_BLOCKING_GETPUT    1
+#define CH_ATTR_FIXED_SIZE      2
 
 #define CH_ENDOFTRANSMISSION  ((void *)0xE)
 

@@ -389,16 +389,16 @@ TEST(CH, attr_test)
     retval = CH_OK;
     retval = ch_getattr(ch, CH_BLOCKING_MODE, &value);
     EXPECT_EQ(CH_OK, retval);
-    EXPECT_EQ(CH_ATTR_BLOCKING_GET, value);
+    EXPECT_EQ(CH_ATTR_BLOCKING_GETPUT, value);
 
     // Set queue as non blocking and check it
     retval = CH_OK;
-    retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GET);
+    retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GETPUT);
     EXPECT_EQ(CH_OK, retval);
     retval = CH_OK;
     retval = ch_getattr(ch, CH_BLOCKING_MODE, &value);
     EXPECT_EQ(CH_OK, retval);
-    EXPECT_EQ(CH_ATTR_NON_BLOCKING_GET, value);
+    EXPECT_EQ(CH_ATTR_NON_BLOCKING_GETPUT, value);
 
     // Read first element
     retval = CH_OK;
@@ -693,7 +693,7 @@ TEST(CH, MT_N_Writer_M_Reader)
         ASSERT_EQ(0, pthread_ret);
     }
 
-    printf("channels waiting threads %d\n", ch->waiting_threads);
+    printf("channels waiting threads %d\n", ch->get_waiting_threads);
 
     // start readers
     for (int i = 0; i<NUM_READER; i++)
@@ -709,7 +709,7 @@ TEST(CH, MT_N_Writer_M_Reader)
         ASSERT_EQ(0, pthread_ret);
     }
 
-    printf("channels waiting threads %d\n", ch->waiting_threads);
+    printf("channels waiting threads %d\n", ch->get_waiting_threads);
 
     for (int i = 0; i<NUM_WRITER; i++)
     {
@@ -721,7 +721,7 @@ TEST(CH, MT_N_Writer_M_Reader)
         pthread_join(th_reader[i], &th_ret);
     }
 
-    printf("channels waiting threads %d\n", ch->waiting_threads);
+    printf("channels waiting threads %d\n", ch->get_waiting_threads);
 
     int sum = 0;
     for (int i = 0; i<NUM_READER; i++)
