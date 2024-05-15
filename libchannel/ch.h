@@ -46,7 +46,7 @@ struct _ch_h
     int datalen;
     int count;
     int max_size; // maximum size of channel
-    int attr;
+    unsigned int attr;
     ch_elem_t *head;
     ch_elem_t *tail;
     pthread_mutex_t ch_mutex;
@@ -85,7 +85,6 @@ typedef int ch_opaque_delete_func (void *);
 // attributes values
 #define CH_ATTR_NON_BLOCKING_GETPUT 0
 #define CH_ATTR_BLOCKING_GETPUT    1
-#define CH_ATTR_FIXED_SIZE      2
 
 #define CH_ENDOFTRANSMISSION  ((void *)0xE)
 

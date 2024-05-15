@@ -55,7 +55,8 @@ void *ch_create(ch_h *ch, int datalen)
     ch->datalen = datalen;
     ch->count = 0;
     ch->max_size = 0; // 0 = infinite
-    ch->attr = CH_ATTR_BLOCKING_GETPUT;
+    ch->attr = 0;
+    ch->attr |= CH_ATTR_BLOCKING_GETPUT;
     ch->head = NULL;
     ch->tail = NULL;
     ch->get_waiting_threads = 0;
@@ -375,6 +376,15 @@ int ch_setattr(ch_h *ch, int attr, int val)
             return (CH_WRONG_VALUE);
         }
 
+        if (val == CH_ATTR_BLOCKING_GETPUT)
+        {
+            ch->attr |= CH_ATTR_BLOCKING_GETPUT;
+        }
+        else
+        {
+            ch->attr &= CH_ATTR_NON_BLOCKING_GETPUT;
+        }
+
         ch->attr &= val;
 
         break;
@@ -383,7 +393,6 @@ int ch_setattr(ch_h *ch, int attr, int val)
         if (val >= 0)
         {
             ch->max_size = val;
-            ch->attr &= CH_ATTR_FIXED_SIZE;
         }
 
         break;
