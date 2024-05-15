@@ -40,6 +40,7 @@ static void _ch_unlock(ch_h *ch)
 
 void *ch_create(ch_h *ch, int datalen)
 {
+    (void) version;
     // no preallocated handle, create one
     if (ch == NULL)
     {
@@ -387,8 +388,6 @@ int ch_setattr(ch_h *ch, int attr, int val)
         {
             ch->attr &= CH_ATTR_NON_BLOCKING_GETPUT;
         }
-
-        ch->attr &= val;
 
         break;
     case CH_FIXED_SIZE:
