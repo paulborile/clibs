@@ -14,6 +14,9 @@
 
 #include "ch.h"
 
+// version
+static char version[] = "1.0.0";
+
 /*  Local types                                 */
 
 #define CH_CHECK(f) if ((!f) || (f->magic != CH_MAGIC_ID)) return (CH_BAD_HANDLE);
