@@ -27,7 +27,7 @@ typedef struct _tst_struct tst_s;
 typedef struct _datablock
 {
     int counter;
-    char text[10];
+    char text[16];
 } datablock;
 
 
