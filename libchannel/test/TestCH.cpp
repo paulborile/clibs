@@ -303,8 +303,6 @@ TEST(CH, simple_channel_test)
     pthread_ret = pthread_create(&th_reader, NULL, &thread_reader, (void *)ch);
     ASSERT_EQ(0, pthread_ret);
 
-    // sleep(5);
-
     pthread_ret = pthread_create(&th_writer, NULL, &thread_writer, (void *)ch);
     ASSERT_EQ(0, pthread_ret);
 
@@ -460,8 +458,6 @@ TEST(CH, pointer_channel_test)
 
     pthread_ret = pthread_create(&th_reader, NULL, &thread_pointer_reader, (void *)ch);
     ASSERT_EQ(0, pthread_ret);
-
-//    sleep(5);
 
     pthread_ret = pthread_create(&th_writer, NULL, &thread_pointer_writer, (void *)ch);
     ASSERT_EQ(0, pthread_ret);
@@ -792,7 +788,7 @@ TEST(CH, MT_N_Writer_M_Reader_FixedSize)
         ASSERT_EQ(0, pthread_ret);
     }
     printf("started writers\n");
-    sleep(1);
+    this_thread::sleep_for(chrono::seconds(1)); // wait for writers to fill queue
     printf("channels get waiting threads %d\n", ch->get_waiting_threads);
     printf("channels put waiting threads %d\n", ch->put_waiting_threads);
 
