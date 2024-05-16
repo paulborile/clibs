@@ -123,20 +123,34 @@ static int _ch_put(ch_h *ch, void *block, int where)
 
     _ch_lock(ch);
 
-    if ((ch->max_size > 0) && ((ch->attr & CH_ATTR_BLOCKING_GETPUT) != CH_ATTR_BLOCKING_GETPUT))
+    if (ch->max_size > 0)
     {
-        if (ch->count >= ch->max_size)
+        if ((ch->attr & CH_ATTR_BLOCKING_GETPUT) != CH_ATTR_BLOCKING_GETPUT)
         {
-            // channel is full and NOT in blocking mode so we need to return
-            // free element just allocated above
-            if ((ch->datalen != CH_DATALEN_VOIDP) && (block != CH_ENDOFTRANSMISSION))
+            if (ch->count >= ch->max_size)
             {
-                free(element->block);
-            }
-            free(element);
+                // channel is full and NOT in blocking mode so we need to return.
+                // free the element just allocated above
+                if ((ch->datalen != CH_DATALEN_VOIDP) && (block != CH_ENDOFTRANSMISSION))
+                {
+                    free(element->block);
+                }
+                free(element);
 
-            _ch_unlock(ch);
-            return CH_PUT_CHANNEL_FULL;
+                _ch_unlock(ch);
+                return CH_PUT_CHANNEL_FULL;
+            }
+        }
+        else
+        {
+            // blocking channel, and fixed_size set
+            while (ch->count >= ch->max_size)
+            {
+                // wait on condition variable for channel to drain
+                ch->put_waiting_threads++;
+                pthread_cond_wait(&(ch->ch_put_condvar), &(ch->ch_mutex));
+                ch->put_waiting_threads--;
+            }
         }
     }
 
@@ -148,16 +162,6 @@ static int _ch_put(ch_h *ch, void *block, int where)
         }
         else
         {
-            if (ch->max_size != 0)
-            {
-                while (ch->count >= ch->max_size)
-                {
-                    // wait on condition variable for channel to drain
-                    ch->put_waiting_threads++;
-                    pthread_cond_wait(&(ch->ch_put_condvar), &(ch->ch_mutex));
-                    ch->put_waiting_threads--;
-                }
-            }
             ch->tail->prev = element;
         }
         ch->tail = element;
@@ -170,17 +174,6 @@ static int _ch_put(ch_h *ch, void *block, int where)
         }
         else
         {
-            if (ch->max_size != 0)
-            {
-                while (ch->count >= ch->max_size)
-                {
-                    // wait on condition variable for channel to drain
-                    ch->put_waiting_threads++;
-                    pthread_cond_wait(&(ch->ch_put_condvar), &(ch->ch_mutex));
-                    ch->put_waiting_threads--;
-                }
-            }
-
             element->prev = ch->head;
         }
         ch->head = element;
@@ -509,6 +502,7 @@ int ch_destroy(ch_h *ch)
 
     pthread_mutex_destroy(&(ch->ch_mutex));
     pthread_cond_destroy(&(ch->ch_get_condvar));
+    pthread_cond_destroy(&(ch->ch_put_condvar));
 
     if (ch->allocated)
     {

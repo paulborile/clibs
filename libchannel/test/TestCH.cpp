@@ -169,7 +169,7 @@ TEST(CH, put_error_conditions)
     ch_h *ch = NULL;
     char block[20];
     block[0] = '\0';
-    char *ptr = 0xbeffa;
+    char *ptr = (char *) 0xbeffa;
 
     int retval = ch_put(ch, block);
     EXPECT_EQ(CH_WRONG_PARAM, retval);
@@ -233,7 +233,7 @@ TEST(CH, attr_error_conditions)
     int retval = ch_setattr(ch, CH_COUNT, 0);
     EXPECT_EQ(CH_BAD_HANDLE, retval);
 
-    retval = ch_getattr(ch, CH_COUNT, &value);
+    retval = ch_getattr(ch, CH_COUNT, (int *) &value);
     EXPECT_EQ(CH_BAD_HANDLE, retval);
 
     ch = (ch_h *)ch_create(NULL, 20);
@@ -245,7 +245,7 @@ TEST(CH, attr_error_conditions)
     retval = ch_setattr(ch, CH_BLOCKING_MODE, 3);
     EXPECT_EQ(CH_WRONG_VALUE, retval);
 
-    retval = ch_getattr(ch, 500, &value);
+    retval = ch_getattr(ch, 500, (int *) &value);
     EXPECT_EQ(CH_WRONG_ATTR, retval);
 
 //  No test on null pointer for attribute value returned.
@@ -377,7 +377,8 @@ TEST(CH, attr_test)
 {
     ch_h *ch = NULL;
     int limit = 30;
-    unsigned int value, retval, counter;
+    unsigned int value;
+    int retval, counter;
     char element[50];
 
     ch = (ch_h *)ch_create(NULL, CH_DATALEN_STRING);
@@ -394,13 +395,13 @@ TEST(CH, attr_test)
 
     // Number of elements must be equal to limit
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_COUNT, &value);
+    retval = ch_getattr(ch, CH_COUNT, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
     EXPECT_EQ(limit, value);
 
     // Queue actually set as blocking
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_BLOCKING_MODE, &value);
+    retval = ch_getattr(ch, CH_BLOCKING_MODE, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
     EXPECT_EQ(CH_ATTR_BLOCKING_GETPUT, value);
 
@@ -409,7 +410,7 @@ TEST(CH, attr_test)
     retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GETPUT);
     EXPECT_EQ(CH_OK, retval);
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_BLOCKING_MODE, &value);
+    retval = ch_getattr(ch, CH_BLOCKING_MODE, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
     EXPECT_EQ(CH_ATTR_NON_BLOCKING_GETPUT, value);
 
@@ -420,7 +421,7 @@ TEST(CH, attr_test)
 
     // Now queue contains limit - 1 elements
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_COUNT, &value);
+    retval = ch_getattr(ch, CH_COUNT, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
     EXPECT_EQ(limit - 1, value);
 
@@ -429,7 +430,7 @@ TEST(CH, attr_test)
 
     // Now queue contains no elements
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_COUNT, &value);
+    retval = ch_getattr(ch, CH_COUNT, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
     EXPECT_EQ(0, value);
 
