@@ -264,7 +264,7 @@ int ch_get(ch_h *ch, void *block)
             }
         }
 
-        _ch_unlock(ch)
+        _ch_unlock(ch);
         return CH_GET_ENDOFTRANSMISSION;
     }
 
