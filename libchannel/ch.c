@@ -264,9 +264,7 @@ int ch_get(ch_h *ch, void *block)
             }
         }
 
-        _ch_unlock(ch);
-
-
+        _ch_unlock(ch)
         return CH_GET_ENDOFTRANSMISSION;
     }
 
@@ -302,7 +300,7 @@ int ch_get(ch_h *ch, void *block)
 
     ch->count--;
 
-    // TODO : wakeup threads waiting in ch_put
+    // wakeup threads waiting in ch_put
     if (ch->max_size != 0)
     {
         // fixed size channel, wakeup all threads waiting in ch_put
