@@ -158,6 +158,7 @@ int thp_wait(thp_h *thp)
     if (thp->wait_running != 0 )
     {
         // thp_wait already running, only one at a time
+        _thp_unlock(thp);
         return THP_TOO_MANY_WAIT;
     }
     thp->wait_running = 1;
