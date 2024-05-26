@@ -101,6 +101,7 @@ struct _fh_t {
     int h_dim;  // hash size
     int h_datalen;  // opaque_obj size : -1 for strings, 0 for pointers, > 0 for data
     int h_elements;  // elements in hash
+    pthread_mutex_t e_lock; // elements operations lock
     int h_collision;  // collisions during insert
     int h_attr;  // holding attributes
     fh_hash_fun hash_function;
@@ -136,7 +137,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *locked_slot, int *error);
 void *fh_insertlock(fh_t *fh, char *key, void *opaque, int *locked_slot, int *error, void **opaque_obj);
 // fh_dellocked - remove item from a locked hash slot (returned by fh_searchlock)
 int fh_dellocked(fh_t *fh, char *key, int locked_slot);
-int fh_releaselock(fh_t *fh, int slot);
+int fh_releaselock(fh_t *fh, int locked_slot);
 
 uint64_t fh_default_hash(void *data, char *key);// compute the hash size given initial dimension
 unsigned int fh_hash_size(unsigned int s);
@@ -158,7 +159,9 @@ struct _fh_enum_t
 };
 typedef struct _fh_enum_t fh_enum_t;
 
-// New methods for scan completely the hashtable.
+// New methods to completely scan the hashtable.
+// fh_enum_create takes a snapshot of the hashtable in that moment
+// if hashtable size varies during enumeration, it might not find all elements
 fh_enum_t *fh_enum_create(fh_t *fh, int sort_order, int *error);
 int fh_enum_is_valid(fh_enum_t *fhe);
 int fh_enum_move_next(fh_enum_t *fhe);
