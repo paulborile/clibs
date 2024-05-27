@@ -27,7 +27,7 @@ typedef struct _tst_struct tst_s;
 typedef struct _datablock
 {
     int counter;
-    char text[10];
+    char text[16];
 } datablock;
 
 
@@ -169,6 +169,7 @@ TEST(CH, put_error_conditions)
     ch_h *ch = NULL;
     char block[20];
     block[0] = '\0';
+    char *ptr = (char *) 0xbeffa;
 
     int retval = ch_put(ch, block);
     EXPECT_EQ(CH_WRONG_PARAM, retval);
@@ -180,6 +181,18 @@ TEST(CH, put_error_conditions)
     retval = ch_put(ch, NULL);
     EXPECT_EQ(CH_WRONG_PARAM, retval);
 
+    ch_destroy(ch);
+
+    // non blocking mode ch_put on full channel should return error
+    ch = (ch_h *)ch_create(NULL, CH_DATALEN_VOIDP);
+    ASSERT_NE((ch_h *)0, ch);
+    ch_setattr(ch, CH_FIXED_SIZE, 2);
+    retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GETPUT);
+    EXPECT_EQ(CH_OK, retval);
+
+    ASSERT_EQ(1, ch_put(ch, ptr));
+    ASSERT_EQ(2, ch_put(ch, ptr));
+    ASSERT_EQ(CH_PUT_CHANNEL_FULL, ch_put(ch, ptr));
     ch_destroy(ch);
 }
 
@@ -220,7 +233,7 @@ TEST(CH, attr_error_conditions)
     int retval = ch_setattr(ch, CH_COUNT, 0);
     EXPECT_EQ(CH_BAD_HANDLE, retval);
 
-    retval = ch_getattr(ch, CH_COUNT, &value);
+    retval = ch_getattr(ch, CH_COUNT, (int *) &value);
     EXPECT_EQ(CH_BAD_HANDLE, retval);
 
     ch = (ch_h *)ch_create(NULL, 20);
@@ -232,7 +245,7 @@ TEST(CH, attr_error_conditions)
     retval = ch_setattr(ch, CH_BLOCKING_MODE, 3);
     EXPECT_EQ(CH_WRONG_VALUE, retval);
 
-    retval = ch_getattr(ch, 500, &value);
+    retval = ch_getattr(ch, 500, (int *) &value);
     EXPECT_EQ(CH_WRONG_ATTR, retval);
 
 //  No test on null pointer for attribute value returned.
@@ -284,13 +297,11 @@ TEST(CH, simple_channel_test)
     // pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
     // pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
 
-//    retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GET);
-//    EXPECT_EQ(CH_OK, retval);
+    // retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GETPUT);
+    // EXPECT_EQ(CH_OK, retval);
 
     pthread_ret = pthread_create(&th_reader, NULL, &thread_reader, (void *)ch);
     ASSERT_EQ(0, pthread_ret);
-
-//    sleep(5);
 
     pthread_ret = pthread_create(&th_writer, NULL, &thread_writer, (void *)ch);
     ASSERT_EQ(0, pthread_ret);
@@ -364,7 +375,8 @@ TEST(CH, attr_test)
 {
     ch_h *ch = NULL;
     int limit = 30;
-    int value, retval, counter;
+    unsigned int value;
+    int retval, counter;
     char element[50];
 
     ch = (ch_h *)ch_create(NULL, CH_DATALEN_STRING);
@@ -381,24 +393,24 @@ TEST(CH, attr_test)
 
     // Number of elements must be equal to limit
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_COUNT, &value);
+    retval = ch_getattr(ch, CH_COUNT, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
     EXPECT_EQ(limit, value);
 
     // Queue actually set as blocking
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_BLOCKING_MODE, &value);
+    retval = ch_getattr(ch, CH_BLOCKING_MODE, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
-    EXPECT_EQ(CH_ATTR_BLOCKING_GET, value);
+    EXPECT_EQ(CH_ATTR_BLOCKING_GETPUT, value);
 
     // Set queue as non blocking and check it
     retval = CH_OK;
-    retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GET);
+    retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GETPUT);
     EXPECT_EQ(CH_OK, retval);
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_BLOCKING_MODE, &value);
+    retval = ch_getattr(ch, CH_BLOCKING_MODE, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
-    EXPECT_EQ(CH_ATTR_NON_BLOCKING_GET, value);
+    EXPECT_EQ(CH_ATTR_NON_BLOCKING_GETPUT, value);
 
     // Read first element
     retval = CH_OK;
@@ -407,7 +419,7 @@ TEST(CH, attr_test)
 
     // Now queue contains limit - 1 elements
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_COUNT, &value);
+    retval = ch_getattr(ch, CH_COUNT, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
     EXPECT_EQ(limit - 1, value);
 
@@ -416,7 +428,7 @@ TEST(CH, attr_test)
 
     // Now queue contains no elements
     retval = CH_OK;
-    retval = ch_getattr(ch, CH_COUNT, &value);
+    retval = ch_getattr(ch, CH_COUNT, (int *) &value);
     EXPECT_EQ(CH_OK, retval);
     EXPECT_EQ(0, value);
 
@@ -446,8 +458,6 @@ TEST(CH, pointer_channel_test)
 
     pthread_ret = pthread_create(&th_reader, NULL, &thread_pointer_reader, (void *)ch);
     ASSERT_EQ(0, pthread_ret);
-
-//    sleep(5);
 
     pthread_ret = pthread_create(&th_writer, NULL, &thread_pointer_writer, (void *)ch);
     ASSERT_EQ(0, pthread_ret);
@@ -622,7 +632,11 @@ void *writer(void *v)
     // send data
     for (int i=0; i<t->num_messages/t->num_writer; i++)
     {
-        ch_put(t->ch, (void *) str);
+        int rc = ch_put(t->ch, (void *) str);
+        if ( rc < 0 )
+        {
+            printf("writer %d: ch_put failed with %d\n", t->thread_number, rc);
+        }
     }
 
     // terminate sending 1 EOT for each thread. reader thread will recevie EOT and terminate
@@ -669,6 +683,8 @@ TEST(CH, MT_N_Writer_M_Reader)
     int pthread_ret = 0, retval;
     void *th_ret;
 
+    memset(msgs_per_thread, 0, sizeof(msgs_per_thread));
+
     ch = (ch_h *)ch_create(NULL, CH_DATALEN_VOIDP);
     ASSERT_NE((ch_h *)0, ch);
 
@@ -693,7 +709,7 @@ TEST(CH, MT_N_Writer_M_Reader)
         ASSERT_EQ(0, pthread_ret);
     }
 
-    printf("channels waiting threads %d\n", ch->waiting_threads);
+    printf("channels waiting threads %d\n", ch->get_waiting_threads);
 
     // start readers
     for (int i = 0; i<NUM_READER; i++)
@@ -709,7 +725,7 @@ TEST(CH, MT_N_Writer_M_Reader)
         ASSERT_EQ(0, pthread_ret);
     }
 
-    printf("channels waiting threads %d\n", ch->waiting_threads);
+    printf("channels waiting threads %d\n", ch->get_waiting_threads);
 
     for (int i = 0; i<NUM_WRITER; i++)
     {
@@ -721,7 +737,91 @@ TEST(CH, MT_N_Writer_M_Reader)
         pthread_join(th_reader[i], &th_ret);
     }
 
-    printf("channels waiting threads %d\n", ch->waiting_threads);
+    printf("channels waiting threads %d\n", ch->get_waiting_threads);
+
+    int sum = 0;
+    for (int i = 0; i<NUM_READER; i++)
+    {
+        printf("reader %d : messages processed %d\n", i, msgs_per_thread[i]);
+        sum += msgs_per_thread[i];
+    }
+
+    EXPECT_EQ(NUM_MESSAGES, sum);
+
+    int channel_count_at_end;
+    EXPECT_EQ(CH_OK, ch_getattr(ch, CH_COUNT, &channel_count_at_end));
+    EXPECT_EQ(0, channel_count_at_end);
+
+    retval = ch_destroy(ch);
+    EXPECT_EQ(CH_OK, retval);
+}
+
+
+
+TEST(CH, MT_N_Writer_M_Reader_FixedSize)
+{
+    ch_h *ch = NULL;
+    pthread_t th_writer[16], th_reader[16];
+    int pthread_ret = 0, retval;
+    void *th_ret;
+
+    memset(msgs_per_thread, 0, sizeof(msgs_per_thread));
+
+    ch = (ch_h *)ch_create(NULL, CH_DATALEN_VOIDP);
+    ASSERT_NE((ch_h *)0, ch);
+    ch_setattr(ch, CH_FIXED_SIZE, 1000);
+
+    struct th_data rtdata[16];
+    struct th_data wtdata[16];
+
+    // start writers
+    for (int i = 0; i<NUM_WRITER; i++)
+    {
+        memset(&wtdata[i], 0, sizeof(struct th_data));
+
+        wtdata[i].num_reader = NUM_READER;
+        wtdata[i].num_writer = NUM_WRITER;
+        wtdata[i].num_messages = NUM_MESSAGES;
+        wtdata[i].ch = ch;
+        wtdata[i].thread_number = i;
+        pthread_ret = pthread_create(&th_writer[i], NULL, &writer, (void *)&wtdata[i]);
+        ASSERT_EQ(0, pthread_ret);
+    }
+    printf("started writers\n");
+    this_thread::sleep_for(chrono::seconds(1)); // wait for writers to fill queue
+    printf("channels get waiting threads %d\n", ch->get_waiting_threads);
+    printf("channels put waiting threads %d\n", ch->put_waiting_threads);
+
+    // start readers
+    for (int i = 0; i<NUM_READER; i++)
+    {
+        memset(&rtdata[i], 0, sizeof(struct th_data));
+
+        rtdata[i].num_reader = NUM_READER;
+        rtdata[i].num_writer = NUM_WRITER;
+        rtdata[i].num_messages = NUM_MESSAGES;
+        rtdata[i].ch = ch;
+        rtdata[i].thread_number = i;
+        pthread_ret = pthread_create(&th_reader[i], NULL, &reader, (void *)&rtdata[i]);
+        ASSERT_EQ(0, pthread_ret);
+    }
+
+    printf("channels get waiting threads %d\n", ch->get_waiting_threads);
+    printf("channels put waiting threads %d\n", ch->put_waiting_threads);
+
+
+    for (int i = 0; i<NUM_WRITER; i++)
+    {
+        pthread_join(th_writer[i], &th_ret);
+    }
+
+    for (int i = 0; i<NUM_READER; i++)
+    {
+        pthread_join(th_reader[i], &th_ret);
+    }
+
+    printf("channels get waiting threads %d\n", ch->get_waiting_threads);
+    printf("channels put waiting threads %d\n", ch->put_waiting_threads);
 
     int sum = 0;
     for (int i = 0; i<NUM_READER; i++)

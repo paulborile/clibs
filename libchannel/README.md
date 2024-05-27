@@ -1,6 +1,6 @@
 # libch - a golang inspired channel library in C
 
-Connect producer / consumer threads with a thread safe channel (only buffered at the moment)
+Connect producer / consumer threads with a thread safe channel
 
 ```
     ...
@@ -11,7 +11,13 @@ Connect producer / consumer threads with a thread safe channel (only buffered at
 
     ch_h *ch = ch_create(NULL, CH_DATALEN_STRING);
 
-    // retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GET);
+    // for fixed size channel (default infinite), ch_put will block on channel full
+
+    retval = ch_setattr(ch, CH_FIXED_SIZE, 1000);
+
+    // default for ch_get is BLOCKING_MODE i.e. ch_get will wait for a new
+    // message to be available in the channel. Non blocking mode is available though
+    // retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GETPUT);
 
     pthread_ret = pthread_create(&th_reader, NULL, &thread_reader, (void *)ch);
 

@@ -1,5 +1,12 @@
 # Changelog
 
+### 1.0.3 Mar 2024
+
+- restored critical section on elements and collisions : we need correct numbers for fh_clean to work
+- fixed a problem on fh_insert when holes were present in buckets
+- better MT tests the showed the problem on elements
+- libch fixed size channel
+
 ### 1.0.2 Mar 2024
 
 - removed critical section on elements number : we don't care if not super correct under concurrent access

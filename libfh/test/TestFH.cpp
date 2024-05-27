@@ -958,7 +958,7 @@ TEST(FH, hf_struct_clean_test)
     char key[10];
 
     // Create hash table of structures
-    fhash = fh_create(hashsize, sizeof(dataload), NULL);
+    fhash = fh_create(1, sizeof(dataload), NULL);
     ASSERT_NE((fh_t *)0, fhash);
 
     // Fill it with data
@@ -1014,7 +1014,7 @@ TEST(FH, hf_void_clean_test)
     char key[10];
 
     // Create hash table of void pointers
-    fhash = fh_create(hashsize, FH_DATALEN_VOIDP, NULL);
+    fhash = fh_create(1, FH_DATALEN_VOIDP, NULL);
     ASSERT_NE((fh_t *)0, fhash);
 
     // Fill it with data
@@ -1067,7 +1067,7 @@ TEST(FH, hf_void_containing_key_clean_test)
     int result = 0;
 
     // Create hash table of void pointers
-    fhash = fh_create(hashsize, FH_DATALEN_VOIDP, NULL);
+    fhash = fh_create(1, FH_DATALEN_VOIDP, NULL);
     ASSERT_NE((fh_t *)0, fhash);
 
     result = fh_setattr(fhash, FH_SETATTR_DONTCOPYKEY, 1);
@@ -1288,4 +1288,135 @@ TEST(FH, DeleteUnexistantKeyAndInsert)
     EXPECT_LE(0, fh_insert(fh, (char *) header, (void *) value));
 
     EXPECT_EQ(FH_OK, fh_destroy(fh));
+}
+
+
+
+// struct dataload
+// {
+//     int numval;
+//     char textval[10];
+// };
+
+// Bucket list test - delete internal buckets
+TEST(FH, bucket_list_test)
+{
+    dataload buffer;
+    fh_t *fhash = NULL;
+    int error = 0, attribute = 0;
+    int hashsize = 48;
+    int result = 0;
+    char key[10];
+
+    // Create hash table of void pointers
+    fhash = fh_create(1, sizeof(struct dataload), NULL);
+    ASSERT_NE((fh_t *)0, fhash);
+
+    // Fill it with data
+    // 5 buckets created on single hashslot
+    for (int index = 0; index < hashsize; index++)
+    {
+        buffer.numval = index;
+        strcpy(buffer.textval, "Text");
+        strcat(buffer.textval, ToString(index).c_str());
+        strcpy(key, "key");
+        strcat(key, ToString(index).c_str());
+
+        result = fh_insert(fhash, key, &buffer);
+        EXPECT_EQ(result, 0); // all inserts go into slot 1
+    }
+    // Check that hash table contains the right number of elements
+    error = fh_getattr(fhash, FH_ATTR_ELEMENT, &attribute);
+    EXPECT_EQ(hashsize, attribute);
+
+    // now delete all from second bucket
+    for (int index = 24; index < 32; index++)
+    {
+        strcpy(key, "key");
+        strcat(key, ToString(index).c_str());
+
+        result = fh_del(fhash, key);
+        EXPECT_EQ(result, 0);
+    }
+    // Check that hash table contains the right number of elements
+    error = fh_getattr(fhash, FH_ATTR_ELEMENT, &attribute);
+    EXPECT_EQ(hashsize-8, attribute);
+
+    string key3 = "key3"; // 1st bucket
+    string key11 = "key11"; // 2nd bucket
+    string key19 = "key19"; // 3rd bucket
+    string key27 = "key27"; // 4th bucket
+    string key35 = "key35"; // 5th bucket
+
+    // now check that both elements in first, third and following buckets are still there
+
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key3.c_str(), &error));
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key11.c_str(), &error));
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key19.c_str(), &error));
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key35.c_str(), &error));
+
+    // now delete all from first bucket
+    for (int index = 0; index < 8; index++)
+    {
+        strcpy(key, "key");
+        strcat(key, ToString(index).c_str());
+
+        result = fh_del(fhash, key);
+        EXPECT_EQ(result, 0);
+    }
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key11.c_str(), &error));
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key19.c_str(), &error));
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key35.c_str(), &error));
+
+    // now delete all from last bucket
+    for (int index = 32; index < 48; index++)
+    {
+        strcpy(key, "key");
+        strcat(key, ToString(index).c_str());
+
+        result = fh_del(fhash, key);
+        EXPECT_EQ(result, 0);
+    }
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key11.c_str(), &error));
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key19.c_str(), &error));
+
+    // now delete all from 4th bucket
+    for (int index = 8; index < 16; index++)
+    {
+        strcpy(key, "key");
+        strcat(key, ToString(index).c_str());
+
+        result = fh_del(fhash, key);
+        EXPECT_EQ(result, 0);
+    }
+    EXPECT_NE((dataload *)0, fh_get(fhash, (char *)key19.c_str(), &error));
+
+    // now delete all from only bucket left
+    for (int index = 16; index < 24; index++)
+    {
+        strcpy(key, "key");
+        strcat(key, ToString(index).c_str());
+
+        result = fh_del(fhash, key);
+        EXPECT_EQ(result, 0);
+    }
+
+    // Check that hash table is empty
+    error = fh_getattr(fhash, FH_ATTR_ELEMENT, &attribute);
+    EXPECT_EQ(0, attribute);
+
+    // Clean hashtable
+    error = fh_clean(fhash, NULL);
+    EXPECT_EQ(FH_EMPTY_HASHTABLE, error);
+
+    // Check that hash table is empty
+    error = fh_getattr(fhash, FH_ATTR_ELEMENT, &attribute);
+    EXPECT_EQ(0, attribute);
+
+    // Get one element and check returned value
+    fh_get(fhash, (char *)key15.c_str(), &error);
+    EXPECT_EQ(FH_ELEMENT_NOT_FOUND, error);
+
+    // Destroy hash table
+    fh_destroy(fhash);
 }

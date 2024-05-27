@@ -14,6 +14,9 @@
 
 #include "ch.h"
 
+// version
+static char version[] = "1.0.0";
+
 /*  Local types                                 */
 
 #define CH_CHECK(f) if ((!f) || (f->magic != CH_MAGIC_ID)) return (CH_BAD_HANDLE);
@@ -37,6 +40,7 @@ static void _ch_unlock(ch_h *ch)
 
 void *ch_create(ch_h *ch, int datalen)
 {
+    (void) version;
     // no preallocated handle, create one
     if (ch == NULL)
     {
@@ -54,20 +58,28 @@ void *ch_create(ch_h *ch, int datalen)
     ch->magic = CH_MAGIC_ID;
     ch->datalen = datalen;
     ch->count = 0;
-    ch->attr = CH_ATTR_BLOCKING_GET;
+    ch->max_size = 0; // 0 = infinite
+    ch->attr = 0;
+    ch->attr |= CH_ATTR_BLOCKING_GETPUT;
     ch->head = NULL;
     ch->tail = NULL;
-    ch->waiting_threads = 0;
-    // ch->free_fun = free_fun;
+    ch->get_waiting_threads = 0;
+    ch->put_waiting_threads = 0;
 
     pthread_mutex_init(&(ch->ch_mutex), NULL);
-    pthread_cond_init(&(ch->ch_condvar), NULL);
+    pthread_cond_init(&(ch->ch_get_condvar), NULL);
+    pthread_cond_init(&(ch->ch_put_condvar), NULL);
     return ch;
 }
 
 #define CH_PUT_STD 1
 #define CH_PUT_TOP 2
 
+// put at <where> of queue
+// if where == CH_PUT_STD put at end of queue
+// if where == CH_PUT_TOP put at top of queue
+// if max_size!= 0 and queue is full wait on condition variable (if CH_BLOCKING_MODE set)
+// if CH_BLOCKING_MODE not set and queue is full return CH_FULL
 static int _ch_put(ch_h *ch, void *block, int where)
 {
     ch_elem_t *element = NULL;
@@ -111,6 +123,37 @@ static int _ch_put(ch_h *ch, void *block, int where)
 
     _ch_lock(ch);
 
+    if (ch->max_size > 0)
+    {
+        if ((ch->attr & CH_ATTR_BLOCKING_GETPUT) != CH_ATTR_BLOCKING_GETPUT)
+        {
+            if (ch->count >= ch->max_size)
+            {
+                // channel is full and NOT in blocking mode so we need to return.
+                // free the element just allocated above
+                if ((ch->datalen != CH_DATALEN_VOIDP) && (block != CH_ENDOFTRANSMISSION))
+                {
+                    free(element->block);
+                }
+                free(element);
+
+                _ch_unlock(ch);
+                return CH_PUT_CHANNEL_FULL;
+            }
+        }
+        else
+        {
+            // blocking channel, and fixed_size set
+            while (ch->count >= ch->max_size)
+            {
+                // wait on condition variable for channel to drain
+                ch->put_waiting_threads++;
+                pthread_cond_wait(&(ch->ch_put_condvar), &(ch->ch_mutex));
+                ch->put_waiting_threads--;
+            }
+        }
+    }
+
     if ( where == CH_PUT_STD )
     {
         if (ch->count == 0)
@@ -138,9 +181,9 @@ static int _ch_put(ch_h *ch, void *block, int where)
     ch->count++;
 
     // check if threads blocked in get notify them
-    if ((ch->attr & CH_ATTR_BLOCKING_GET) == CH_ATTR_BLOCKING_GET)
+    if ((ch->attr & CH_ATTR_BLOCKING_GETPUT) == CH_ATTR_BLOCKING_GETPUT)
     {
-        pthread_cond_signal(&(ch->ch_condvar));
+        pthread_cond_signal(&(ch->ch_get_condvar));
     }
 
     int ccount = ch->count;
@@ -169,7 +212,7 @@ int ch_get(ch_h *ch, void *block)
 
     _ch_lock(ch);
 
-    if ((ch->count == 0) && ((ch->attr & CH_ATTR_BLOCKING_GET) != CH_ATTR_BLOCKING_GET))
+    if ((ch->count == 0) && ((ch->attr & CH_ATTR_BLOCKING_GETPUT) != CH_ATTR_BLOCKING_GETPUT))
     {
         // non blocking mode, if channel is emptry return CH_GET_NODATA
         _ch_unlock(ch);
@@ -178,9 +221,9 @@ int ch_get(ch_h *ch, void *block)
 
     while (ch->count == 0)
     {
-        ch->waiting_threads++;
-        pthread_cond_wait(&(ch->ch_condvar), &(ch->ch_mutex));
-        ch->waiting_threads--;
+        ch->get_waiting_threads++;
+        pthread_cond_wait(&(ch->ch_get_condvar), &(ch->ch_mutex));
+        ch->get_waiting_threads--;
 
         // if (ch->count == 0)
         // {
@@ -209,6 +252,18 @@ int ch_get(ch_h *ch, void *block)
         free(element);
 
         ch->count--;
+
+        // TODO : wakeup threads waiting in ch_put
+        if (ch->max_size != 0)
+        {
+            // fixed size channel, wakeup all threads waiting in ch_put
+            if ( ch->put_waiting_threads > 0 )
+            {
+                // signal thread
+                pthread_cond_signal(&(ch->ch_put_condvar));
+            }
+        }
+
         _ch_unlock(ch);
         return CH_GET_ENDOFTRANSMISSION;
     }
@@ -244,6 +299,18 @@ int ch_get(ch_h *ch, void *block)
     free(element);
 
     ch->count--;
+
+    // wakeup threads waiting in ch_put
+    if (ch->max_size != 0)
+    {
+        // fixed size channel, wakeup all threads waiting in ch_put
+        if ( ch->put_waiting_threads > 0 )
+        {
+            // signal thread
+            pthread_cond_signal(&(ch->ch_put_condvar));
+        }
+    }
+
     _ch_unlock(ch);
     return CH_OK;
 }
@@ -299,20 +366,29 @@ int ch_setattr(ch_h *ch, int attr, int val)
     {
     case CH_BLOCKING_MODE:
 
-        if (val != CH_ATTR_NON_BLOCKING_GET && val != CH_ATTR_BLOCKING_GET)
+        if (val != CH_ATTR_NON_BLOCKING_GETPUT && val != CH_ATTR_BLOCKING_GETPUT)
         {
             return (CH_WRONG_VALUE);
         }
 
-        ch->attr &= val;
-
-        if ((ch->attr & CH_ATTR_BLOCKING_GET) == CH_ATTR_BLOCKING_GET)
+        if (val == CH_ATTR_BLOCKING_GETPUT)
         {
-            pthread_cond_init(&(ch->ch_condvar), NULL);
+            ch->attr |= CH_ATTR_BLOCKING_GETPUT;
+        }
+        else
+        {
+            ch->attr &= CH_ATTR_NON_BLOCKING_GETPUT;
         }
 
         break;
+    case CH_FIXED_SIZE:
+        // val contains the size of the channel
+        if (val >= 0)
+        {
+            ch->max_size = val;
+        }
 
+        break;
     default:
         return (CH_WRONG_ATTR);
     }
@@ -334,6 +410,9 @@ int ch_getattr(ch_h *ch, int attr, int *val)
         _ch_lock(ch);
         *val = ch->count;
         _ch_unlock(ch);
+        break;
+    case CH_FIXED_SIZE:
+        *val = ch->max_size;
         break;
     default:
         return (CH_WRONG_ATTR);
@@ -410,17 +489,18 @@ int ch_destroy(ch_h *ch)
 
     ch->magic = 0xD;
     // wakeup sleeping threads
-    if ((ch->attr & CH_ATTR_BLOCKING_GET) == CH_ATTR_BLOCKING_GET)
+    if ((ch->attr & CH_ATTR_BLOCKING_GETPUT) == CH_ATTR_BLOCKING_GETPUT)
     {
-        while (ch->waiting_threads > 0)
+        while (ch->get_waiting_threads > 0)
         {
-            pthread_cond_broadcast(&(ch->ch_condvar));
+            pthread_cond_broadcast(&(ch->ch_get_condvar));
             //sleep(1);
         }
     }
 
     pthread_mutex_destroy(&(ch->ch_mutex));
-    pthread_cond_destroy(&(ch->ch_condvar));
+    pthread_cond_destroy(&(ch->ch_get_condvar));
+    pthread_cond_destroy(&(ch->ch_put_condvar));
 
     if (ch->allocated)
     {

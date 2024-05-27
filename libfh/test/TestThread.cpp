@@ -166,6 +166,7 @@ void *del_and_insert(void *param)
 
     int nelem = 0;
     fh_getattr(fhash, FH_ATTR_ELEMENT, &nelem);
+    cout << "Elements in hash before deletion: " << nelem << endl;
 
     for (int index = 0; index < numloop; index++)
     {
@@ -728,6 +729,149 @@ TEST(FH, MultithreadGetSpeed)
         thp_destroy(thp);
     }
 
+}
+
+
+// measure_fh_get_insert_del_speed_thread
+void *measure_fh_get_insert_del_speed_thread(void *v)
+{
+    struct thread_data *td = (struct thread_data *) v;
+    int i = td->cycles;
+    double delta;
+    int error;
+    int count = 0;
+
+    while (i--) {
+        // generate random string
+        for (int j = 0; j < td->fh_size; j++)
+        {
+            int rand_place = 0;
+            // if (j % 3 == 0)
+            // {
+            //     // once every 3 items go completely casual
+            //     rand_place = rand() % td->fh_size;
+            // }
+            // else
+            // {
+            rand_place = td->rand_nums[j];
+            // }
+
+            string key = "key" + to_string(rand_place);
+
+            timing_start(td->tstat[td->thread_num].t);
+            char value[64];
+            error = fh_search(td->f, (char *) key.c_str(), value, 64);
+            // only 20% of the time simulate a cache miss
+            if (rand_place % 5 )
+            {
+                fh_del(td->f, (char *) key.c_str());
+                string ins_str = "value" + to_string(rand_place);
+                fh_insert(td->f, (char *) key.c_str(), (void *) ins_str.c_str());
+            }
+            delta = timing_end(td->tstat[td->thread_num].t);
+
+            if (error >= 0)
+            {
+                // test for correctness of value
+                string value_str = "value" + to_string(rand_place);
+                if (strcmp(value, value_str.c_str()) != 0)
+                {
+                    printf("Error: value for key %s is %s, should be %s\n", key.c_str(), value, value_str.c_str());
+                    return NULL;
+                }
+            }
+            td->tstat[td->thread_num].fh_get_time += delta;
+            td->tstat[td->thread_num].avg_time = compute_average(td->tstat[td->thread_num].avg_time, count++, delta);
+        }
+    }
+    free(v); // free the copy generated for this thread.
+    return NULL;
+}
+
+// a test to measure tipical lru cache use :
+// - get only threads
+// - get -> insert -> delete threads
+TEST(FH, MultithreadGetInsertDelSpeed)
+{
+    int MaxThreads = 8;
+    pthread_t threads[MaxThreads];
+    void *retval;
+
+    for (int k = 1; k <= 8; k++)
+    {
+        int err;
+        struct thread_data tdata = {0};
+        const int fh_size = 400000;
+        const int thp_size = k;
+
+        fh_t *fh = fh_create(fh_size, FH_DATALEN_STRING, NULL);
+        ASSERT_NE(nullptr, fh);
+        tdata.rand_nums = (int *)malloc(sizeof(int) * fh_size);
+        tdata.cycles = 10;
+
+        // now fill the hash table with random keys and values that copy the key
+        srand(0); // we want to be ablet to reproduce the results
+        for (int i = 0; i < fh_size; i++)
+        {
+            int rand_num = rand();
+            tdata.rand_nums[i] = rand_num;
+            string key = "key" + to_string(rand_num);
+            string value = "value" + to_string(rand_num);
+            fh_insert(fh, (char *) key.c_str(), (void *) value.c_str());
+        }
+        // create a thread pool with libthp
+        // thp_h *thp = thp_create(NULL, thp_size, &err);
+        // ASSERT_NE(nullptr, thp);
+
+        tdata.f = fh;
+        tdata.fh_size = fh_size;
+        tdata.tstat = (struct thread_stats *)calloc(thp_size, sizeof(struct thread_stats));
+
+        // now run threads that will concurrently call fh_get()
+        for (int i = 0; i < thp_size; i++)
+        {
+            struct thread_data *ptd = (struct thread_data *) malloc(sizeof(struct thread_data));
+            *ptd = tdata;
+            ptd->tstat[i].t = timing_new_timer(TIMING_NANOPRECISION);
+            ptd->thread_num = i;
+            // thp_add(thp, measure_fh_get_insert_del_speed_thread, (void *) ptd);
+            pthread_create(&threads[i], NULL, measure_fh_get_insert_del_speed_thread, (void *) ptd);
+        }
+
+        // wait for all threads to finish
+        // thp_wait(thp);
+        for (int i = 0; i < thp_size; i++)
+        {
+            pthread_join(threads[i], &retval);
+        }
+
+        // print statistics of avg time per fh_get() call
+        // for (int i = 0; i < thp_size; i++)
+        // {
+        //     printf("Thread %d: %.2f\n", i, tdata.tstat[i].avg_time);
+        // }
+
+        // compute cumulative calls per second
+        double total_fhget_sec = 0;
+        for (int i = 0; i < thp_size; i++)
+        {
+            total_fhget_sec += (double) 1.0 / (tdata.tstat[i].fh_get_time/1000000000.0)*(double) (fh_size*tdata.cycles);
+        }
+        int elements;
+        fh_getattr(tdata.f, FH_ATTR_ELEMENT, &elements);
+        printf("%d threads - Total calls per second: %.2f, elements in hash %d\n", thp_size, total_fhget_sec, elements);
+
+        // free memory
+        for (int i = 0; i < thp_size; i++)
+        {
+            timing_delete_timer(tdata.tstat[i].t);
+        }
+        // thp_destroy(thp);
+        fh_destroy(tdata.f);
+        free(tdata.rand_nums);
+        free(tdata.tstat);
+
+    }
 }
 
 double  compute_average(double current_avg, int count, int new_value)
