@@ -107,7 +107,7 @@ struct _fh_t {
     fh_hash_fun hash_function;
     // pthread_mutex_t	h_lock[FH_MAX_CONCURRENT_OPERATIONS];
     // Dynamically allocated mutex pool and its current size
-    pthread_mutex_t *h_lock;
+    pthread_rwlock_t *h_lock;
     int n_lock;
     f_hash *hash_table;
     uint64_t seed; // wyhash seed
@@ -138,6 +138,11 @@ void *fh_insertlock(fh_t *fh, char *key, void *opaque, int *locked_slot, int *er
 // fh_dellocked - remove item from a locked hash slot (returned by fh_searchlock)
 int fh_dellocked(fh_t *fh, char *key, int locked_slot);
 int fh_releaselock(fh_t *fh, int locked_slot);
+
+
+int fh_release_searchlock(fh_t *fh, int slot);
+int fh_release_insertlock(fh_t *fh, int slot);
+
 
 uint64_t fh_default_hash(void *data, char *key);// compute the hash size given initial dimension
 unsigned int fh_hash_size(unsigned int s);
