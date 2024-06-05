@@ -22,7 +22,7 @@
 #include  "wyhash.h"
 
 // version
-static char version[] = "1.0.3";
+static char version[] = "1.1.0";
 
 static void wyhash_hash_init(fh_t *fh)
 {

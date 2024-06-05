@@ -1,5 +1,9 @@
 # Changelog
 
+### 1.1.0 June 2024
+
+- introduced rwlocks (instead of standard mutexes) to reduce contention
+
 ### 1.0.3 Mar 2024
 
 - restored critical section on elements and collisions : we need correct numbers for fh_clean to work
@@ -15,9 +19,8 @@
 
 ## 1.0.1 Jan 2024
 
-- fixed seeding (was not working properly). Tests now show taht seeding works
+- fixed seeding (was not working properly). Tests now show that seeding works
 - breaking change on the hashfun signature. Additional void * used to pass fh_t where seed/secret is kept
-
 
 ## 1.0.0 Sept 2023
 
