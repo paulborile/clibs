@@ -253,7 +253,7 @@ TEST(FH, bad_handle)
     EXPECT_STREQ(NULL, value);
 
     // Release lock
-    error = fh_releaselock(fhash, pos);
+    error = fh_release_searchlock(fhash, pos);
     EXPECT_EQ(FH_BAD_HANDLE, error);
 
     // Clean fh
@@ -339,7 +339,7 @@ TEST(FH, error_conditions)
     value = (char *) fh_insertlock(fhash, (char *)empty.c_str(), (void *)uno.c_str(), &pos, &error, &opaque_obj_ptr);
     EXPECT_EQ(pos, 1);
     const char *uno_ptr = uno.c_str();
-    fh_releaselock(fhash, pos);
+    fh_release_insertlock(fhash, pos);
 
     // Add an element with null value
     result = fh_insert(fhash, (char *)chpippo.c_str(), NULL);
@@ -360,7 +360,7 @@ TEST(FH, error_conditions)
     // add an elemet with fh_insertlock, and check if inserted
     value = (char *)fh_insertlock(fhash, (char *)ch4.c_str(), (void *)quattro.c_str(), &pos, &error, &opaque_obj_ptr);
     EXPECT_EQ(error, FH_OK);
-    fh_releaselock(fhash, pos);
+    fh_release_insertlock(fhash, pos);
     char *value4 = NULL;
     value4 = (char *)fh_get(fhash, (char *)ch4.c_str(), &error);
     EXPECT_STREQ(quattro.c_str(), value4);
@@ -418,10 +418,10 @@ TEST(FH, error_conditions)
 // Check specifics of fh_insertlock method
 TEST(FH, insert_lock_voidp)
 {
-    char *opaque_obj_ptr = NULL;
-    char *key = "key";
-    char *opaque_obj = "opaque_obj";
-    char *new_opaque_obj = "new_opaque_obj";
+    char **opaque_obj_ptr = NULL;
+    string key = "key";
+    string opaque_obj = "opaque_obj";
+    string new_opaque_obj = "new_opaque_obj";
     char *value = NULL;
     int pos = 0, error = 0;
 
@@ -429,14 +429,14 @@ TEST(FH, insert_lock_voidp)
     fh_t *fhash = fh_create(20, FH_DATALEN_VOIDP, NULL);
     ASSERT_NE((fh_t *)0, fhash);
 
-    value = (char *)fh_insertlock(fhash, (char *) key, (void *) opaque_obj, &pos, &error, (void **) &opaque_obj_ptr);
+    value = (char *)fh_insertlock(fhash, (char *) key.c_str(), (void *) opaque_obj.c_str(), &pos, &error, (void **) &opaque_obj_ptr);
     EXPECT_EQ(error, FH_OK);
     // now I can change the opaque object of this entry to point to new opaque object
-    *opaque_obj_ptr = (char *) new_opaque_obj;
-    fh_releaselock(fhash, pos);
+    *opaque_obj_ptr = (char *) new_opaque_obj.c_str();
+    fh_release_insertlock(fhash, pos);
 
     // now fh_get should return the new opaque object
-    EXPECT_EQ(new_opaque_obj, (char *)fh_get(fhash, key, &error));
+    EXPECT_EQ(new_opaque_obj.c_str(), (char *)fh_get(fhash, (char *) key.c_str(), &error));
 
     fh_destroy(fhash);
 
@@ -446,11 +446,11 @@ TEST(FH, insert_lock_voidp)
     fhash = fh_create(20, FH_DATALEN_STRING, NULL);
     ASSERT_NE((fh_t *)0, fhash);
 
-    value = (char *)fh_insertlock(fhash, key, opaque_obj, &pos, &error, (void **) &opaque_obj_ptr);
+    value = (char *)fh_insertlock(fhash, (char *) key.c_str(), (char *) opaque_obj.c_str(), &pos, &error, (void **) &opaque_obj_ptr);
     EXPECT_EQ(error, FH_OK);
     // now I can change the opaque object of this entry to point to new opaque object
     EXPECT_EQ(opaque_obj_ptr, NULL);
-    fh_releaselock(fhash, pos);
+    fh_release_insertlock(fhash, pos);
 
     fh_destroy(fhash);
 }
@@ -467,7 +467,7 @@ TEST(FH, insert_lock_voidp_struct)
     } payload_t;
 
     payload_t *opq_obj_ptr = NULL;
-    char *key = "key";
+    string key = "key";
     payload_t *opq_obj = {0};
     payload_t *new_opq_obj = {0};
     payload_t *opq_value = NULL;
@@ -476,15 +476,15 @@ TEST(FH, insert_lock_voidp_struct)
     fh_t *fhash = fh_create(20, FH_DATALEN_VOIDP, NULL);
     ASSERT_NE((fh_t *)0, fhash);
 
-    opq_value = (payload_t *)fh_insertlock(fhash, (char *) key, (void *) opq_obj, &pos, &error, (void **) &opq_obj_ptr);
+    opq_value = (payload_t *)fh_insertlock(fhash, (char *) key.c_str(), (void *) opq_obj, &pos, &error, (void **) &opq_obj_ptr);
     EXPECT_EQ(error, FH_OK);
     // now I can change the opaque object of this entry to point to new opaque object
     payload_t **pload = (payload_t **) opq_obj_ptr;
     *pload = (payload_t *) new_opq_obj;
-    fh_releaselock(fhash, pos);
+    fh_release_insertlock(fhash, pos);
 
     // now fh_get should return the new opaque object
-    EXPECT_EQ(new_opq_obj, (char *)fh_get(fhash, key, &error));
+    EXPECT_EQ(new_opq_obj, (char *)fh_get(fhash, (char *) key.c_str(), &error));
 
     fh_destroy(fhash);
 
@@ -643,7 +643,7 @@ TEST(FH, hash_with_struct)
     strcpy(pvalue->textval, "Text80");
 
     // Release lock
-    error = fh_releaselock(fhash, pos);
+    error = fh_release_searchlock(fhash, pos);
     EXPECT_EQ(FH_OK, error);
 
     // Get modified element

@@ -204,7 +204,7 @@ void *del_and_insert(void *param)
 
                     if (error == FH_OK)
                     {
-                        fh_releaselock(fhash, pos);
+                        fh_release_insertlock(fhash, pos);
                     }
                 }
                 else
@@ -260,7 +260,7 @@ void *searchlock_and_modify(void *param)
                 strcpy(value, (char *)savedata[ind].opaque_obj);
             }
 
-            error = fh_releaselock(fhash, pos);
+            error = fh_release_searchlock(fhash, pos);
         }
     }
 
