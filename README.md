@@ -22,6 +22,7 @@ libfh : fast hashtable, advanced multi threading support, key is only string and
 copies void pointer.
 hashfunction is wyhash (from 0.10.0) but you can set your hash function in fh_create().
 1.0.0 introduces a bucketed version (inspired heavily by go map) which increases performance by 40% minimum.
+1.1.0 uses rwlocks for better contention.
 
 Sample code :
 
@@ -121,7 +122,7 @@ make -f libthp-test.mk testclean testlinux testrun
 
 ```
 
-## C Channel (Go inspired) - a FIFO queue with unlimited length with block/non-blocking read
+## C Channel (Go inspired) - a FIFO queue with fixed size/unlimited length with blocking/non-blocking get and put
 
 Connect producer / consumer threads with a thread safe data channel
 
@@ -134,7 +135,7 @@ Connect producer / consumer threads with a thread safe data channel
 
     ch_h *ch = ch_create(NULL, CH_DATALEN_STRING);
 
-    // retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GET);
+    // retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GETPUT);
 
     pthread_ret = pthread_create(&th_reader, NULL, &thread_reader, (void *)ch);
 
