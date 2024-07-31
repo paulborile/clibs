@@ -1,5 +1,30 @@
 # Changelog
 
+### 1.2.0 Aug 2024
+
+- fh_setattr(f, FH_SETATTR_USERWLOCKS, 1) to use rwlocks instead of mutexes. Performance is better with rwlocks but
+only if you are using the hash massively concurrently with fh_search/fh_get. Benchmarks : 
+[ RUN      ] FH.MultithreadGetSpeedMutex
+1 threads - Total calls per second: 3602579.92
+2 threads - Total calls per second: 6821306.72
+3 threads - Total calls per second: 10726246.07
+4 threads - Total calls per second: 11101978.70
+5 threads - Total calls per second: 9364126.81
+6 threads - Total calls per second: 10587052.48
+7 threads - Total calls per second: 12205865.27
+8 threads - Total calls per second: 10485972.71
+[       OK ] FH.MultithreadGetSpeedMutex (34246 ms)
+[ RUN      ] FH.MultithreadGetSpeedRWLocks
+1 threads - Total calls per second: 2984249.83
+2 threads - Total calls per second: 5458129.34
+3 threads - Total calls per second: 7862844.13
+4 threads - Total calls per second: 9204684.07
+5 threads - Total calls per second: 10208603.19
+6 threads - Total calls per second: 11846776.29
+7 threads - Total calls per second: 12814910.64
+8 threads - Total calls per second: 14076254.62
+[       OK ] FH.MultithreadGetSpeedRWLocks (37175 ms)
+
 ### 1.1.0 June 2024
 
 - introduced rwlocks (instead of standard mutexes) to reduce contention
