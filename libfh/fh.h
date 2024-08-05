@@ -57,6 +57,7 @@ extern "C" {
 
 // attributes to set in h_attr bitwise
 #define FH_SETATTR_DONTCOPYKEY  1 // for setattr : do not allocate and copy key
+#define FH_SETATTR_USERWLOCKS   2 // for setattr : use read/write locks
 
 // datalen values
 #define FH_DATALEN_STRING   -1
@@ -94,6 +95,8 @@ struct _f_hash {
 };
 typedef struct _f_hash f_hash;
 typedef uint64_t (*fh_hash_fun)(void *data, char *key);
+// for lock functions
+typedef void (*fh_lock_func)(void *fh, int slot);
 
 // fh object
 struct _fh_t {
@@ -105,9 +108,11 @@ struct _fh_t {
     int h_collision;  // collisions during insert
     int h_attr;  // holding attributes
     fh_hash_fun hash_function;
-    // pthread_mutex_t	h_lock[FH_MAX_CONCURRENT_OPERATIONS];
-    // Dynamically allocated mutex pool and its current size
-    pthread_rwlock_t *h_lock;
+    pthread_mutex_t *h_lock; // standard locks, default
+    pthread_rwlock_t *rw_lock; // rwlocks
+    fh_lock_func rlock_f; // lock function : these are set at fh_create/modified by setattr
+    fh_lock_func wlock_f; // lock function : these are set at fh_create/modified by setattr
+    fh_lock_func unlock_f; // unlock function
     int n_lock;
     f_hash *hash_table;
     uint64_t seed; // wyhash seed
@@ -186,8 +191,10 @@ uint64_t jsw_hash(void *, char *);
 // low collisions
 uint64_t jen_hash(void *, char *);
 
+/* *INDENT-OFF* */
 #ifdef __cplusplus
 }
 #endif
+/* *INDENT-ON* */
 
 #endif

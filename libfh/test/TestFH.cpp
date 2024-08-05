@@ -541,7 +541,7 @@ TEST(FH, test_attr_methods)
     // This operation must be done before insert any data
     result = 0;
     result = fh_setattr(fhash, FH_SETATTR_DONTCOPYKEY, 1);
-    EXPECT_EQ(result, 1);
+    EXPECT_EQ(result, FH_OK);
 
     result = fh_insert(fhash, (char *)ch1.c_str(), (void *)uno.c_str());
     EXPECT_GE(result, 0);
@@ -565,26 +565,53 @@ TEST(FH, test_attr_methods)
     // Get attr: elements in hash
     result = 0;
     result = fh_getattr(fhash, FH_ATTR_ELEMENT, &attribute);
-    EXPECT_EQ(result, 1);
+    EXPECT_EQ(result, FH_OK);
     EXPECT_EQ(attribute, 5);
 
     // Get attr: real dimension of hash table (power of 2 value just greater than dimension specified in create)
     result = 0;
     attribute = 0;
     result = fh_getattr(fhash, FH_ATTR_DIM, &attribute);
-    EXPECT_EQ(result, 1);
+    EXPECT_EQ(result, FH_OK);
     EXPECT_EQ(attribute, 4);
 
     // Get attr: number of collisiona
     result = 0;
     attribute = 0;
     result = fh_getattr(fhash, FH_ATTR_COLLISION, &attribute);
-    EXPECT_EQ(result, 1);
+    EXPECT_EQ(result, FH_OK);
     EXPECT_GE(attribute, 0);
 
     // Destroy hash table
     fh_destroy(fhash);
 }
+
+TEST(FH, attr_userrwlocks)
+{
+    int DIM = 100;
+    fh_t *fhash = NULL;
+    int result = 0, attribute = 0;
+
+    // Create hash table of strings
+    fhash = fh_create(3, FH_DATALEN_STRING, NULL);
+    ASSERT_NE((fh_t *)0, fhash);
+
+    // set FH_SETATTR_USERWLOCKS
+    result = fh_setattr(fhash, FH_SETATTR_USERWLOCKS, 1);
+    EXPECT_EQ(result, FH_OK);
+
+    // resetting the mode is not allowed
+    result = fh_setattr(fhash, FH_SETATTR_USERWLOCKS, 0);
+    EXPECT_EQ(result, FH_ERROR_OPERATION_NOT_PERMITTED);
+
+    // setting it again is not allowed
+    result = fh_setattr(fhash, FH_SETATTR_USERWLOCKS, 1);
+    EXPECT_EQ(result, FH_ERROR_OPERATION_NOT_PERMITTED);
+
+    // Destroy hash table
+    fh_destroy(fhash);
+}
+
 
 TEST(FH, hash_with_struct)
 {

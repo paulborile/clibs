@@ -658,7 +658,7 @@ void *measure_fh_get_speed_thread(void *v)
 }
 
 // a test to measure concurrent fh_get() speed with different number of threads
-TEST(FH, MultithreadGetSpeed)
+TEST(FH, MultithreadGetSpeedMutex)
 {
     for (int k = 1; k <= MAX_THREADS; k++)
     {
@@ -731,6 +731,80 @@ TEST(FH, MultithreadGetSpeed)
 
 }
 
+// a test to measure concurrent fh_get() speed with different number of threads
+TEST(FH, MultithreadGetSpeedRWLocks)
+{
+    for (int k = 1; k <= MAX_THREADS; k++)
+    {
+        int err;
+        struct thread_data tdata = {0};
+        const int fh_size = 400000;
+        const int thp_size = k;
+
+        fh_t *fh = fh_create(fh_size, FH_DATALEN_STRING, NULL);
+        ASSERT_NE(nullptr, fh);
+        fh_setattr(fh, FH_SETATTR_USERWLOCKS, 1);
+        tdata.rand_nums = (int *)malloc(sizeof(int) * fh_size);
+        tdata.cycles = 10;
+
+        // now fill the hash table with random keys and values that copy the key
+        srand(0); // we want to be ablet to reproduce the results
+        for (int i = 0; i < fh_size; i++)
+        {
+            int rand_num = rand();
+            tdata.rand_nums[i] = rand_num;
+            string key = "key" + to_string(rand_num);
+            string value = "value" + to_string(rand_num);
+            fh_insert(fh, (char *) key.c_str(), (void *) value.c_str());
+        }
+        // create a thread pool with libthp
+        thp_h *thp = thp_create(NULL, thp_size, &err);
+        ASSERT_NE(nullptr, thp);
+
+        tdata.f = fh;
+        tdata.fh_size = fh_size;
+        tdata.tstat = (struct thread_stats *)calloc(thp_size, sizeof(struct thread_stats));
+
+        // now run threads that will concurrently call fh_get()
+        for (int i = 0; i < thp_size; i++)
+        {
+            struct thread_data *ptd = (struct thread_data *) malloc(sizeof(struct thread_data));
+            *ptd = tdata;
+            ptd->tstat[i].t = timing_new_timer(TIMING_NANOPRECISION);
+            ptd->thread_num = i;
+            thp_add(thp, measure_fh_get_speed_thread, (void *) ptd);
+        }
+
+        // wait for all threads to finish
+        thp_wait(thp);
+        free(tdata.rand_nums);
+
+        // print statistics of avg time per fh_get() call
+        // for (int i = 0; i < thp_size; i++)
+        // {
+        //     printf("Thread %d: %.2f\n", i, tdata.tstat[i].avg_time);
+        // }
+
+        // compute cumulative calls per second
+        double total_fhget_sec = 0;
+        for (int i = 0; i < thp_size; i++)
+        {
+            total_fhget_sec += (double) 1.0 / (tdata.tstat[i].fh_get_time/1000000000.0)*(double) (fh_size*tdata.cycles);
+        }
+
+        printf("%d threads - Total calls per second: %.2f\n", thp_size, total_fhget_sec);
+
+        // free memory
+        for (int i = 0; i < thp_size; i++)
+        {
+            timing_delete_timer(tdata.tstat[i].t);
+        }
+        free(tdata.tstat);
+        fh_destroy(tdata.f);
+        thp_destroy(thp);
+    }
+
+}
 
 // measure_fh_get_insert_del_speed_thread
 void *measure_fh_get_insert_del_speed_thread(void *v)
