@@ -20,10 +20,10 @@ libfh : fast hashtable, advanced multi threading support, key is only string and
 (unless FH_SETATTR_DONTCOPYKEY is set), opaque data is allocated and copied inside hash and can be string 
 (datalen = FH_DATALEN_STRING), fixed lenght (datalen = sizeof data) or datalen = FH_DATALEN_VOIDP just 
 copies void pointer.
-hashfunction is wyhash (from 0.10.0) but you can set your hash function in fh_create().
-1.0.0 introduces a bucketed version (inspired heavily by go map) which increases performance by 40%.
-1.1.0 uses rwlocks for better contention.
-1.2.0 rwlocks enabled by usint fh_setattr(.., FH_SETATTR_USERWLOCKS, 1)
+- hashfunction is wyhash (from 0.10.0) but you can set your hash function in fh_create().
+- 1.0.0 introduces a bucketed version (inspired heavily by go map) which increases performance by 40%.
+- 1.1.0 uses rwlocks for better contention.
+- 1.2.0 rwlocks enabled by usint fh_setattr(.., FH_SETATTR_USERWLOCKS, 1)
 
 Sample code :
 
