@@ -35,6 +35,11 @@ Sample code :
 int main(int argc, char **argv)
 {
     fh_t *f = fh_create(1000, FH_DATALEN_STRING, NULL); // opaque data is string, using builtin hash function
+    // if keys are preallocated and you can avoid creating a copy of the key in hashtable
+    // for faster/less memory fh_insert
+    // fh_setattr(f, FH_SETATTR_DONTCOPYKEY, 1);
+    // if massively(many threads) reading from the hashtable more than updating it use rwlocks
+    // fh_setattr(fhash, FH_SETATTR_USERWLOCKS, 1);
 
     int err = fh_insert(f, "thekey", "value");
 
@@ -135,8 +140,12 @@ Connect producer / consumer threads with a thread safe data channel
     void *th_ret;
 
     ch_h *ch = ch_create(NULL, CH_DATALEN_STRING);
-
+    
+    // set non blocking mode
     // retval = ch_setattr(ch, CH_BLOCKING_MODE, CH_ATTR_NON_BLOCKING_GETPUT);
+
+    // set fixed size
+    // retval = ch_setattr(ch, CH_FIXED_SIZE, 1000); ch_put will block if queue is full
 
     pthread_ret = pthread_create(&th_reader, NULL, &thread_reader, (void *)ch);
 
