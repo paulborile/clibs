@@ -144,11 +144,6 @@ void *fh_insertlock(fh_t *fh, char *key, void *opaque, int *locked_slot, int *er
 int fh_dellocked(fh_t *fh, char *key, int locked_slot);
 int fh_releaselock(fh_t *fh, int locked_slot);
 
-
-int fh_release_searchlock(fh_t *fh, int slot);
-int fh_release_insertlock(fh_t *fh, int slot);
-
-
 uint64_t fh_default_hash(void *data, char *key);// compute the hash size given initial dimension
 unsigned int fh_hash_size(unsigned int s);
 
