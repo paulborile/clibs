@@ -1079,7 +1079,7 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
 int fh_releaselock(fh_t *fh, int slot)
 {
     FH_CHECK(fh);
-    fh->unlock_f(fh, slot)
+    fh->unlock_f(fh, slot);
     return FH_OK;
 }
 
