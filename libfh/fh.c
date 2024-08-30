@@ -381,6 +381,10 @@ int fh_clean(fh_t *fh, fh_opaque_delete_func (*del_func))
     while ( fh_enum_is_valid(fhe) )
     {
         fh_elem_t *element = fh_enum_get_value(fhe, &result);
+        if (element == NULL)
+        {
+            return result;
+        }
 
         fh_del(fh, element->key);
 
@@ -1072,29 +1076,12 @@ void *fh_searchlock(fh_t *fh, char *key, int *slot, int *error)
 }
 
 // release a lock left from fh_searchlock
-// int fh_releaselock(fh_t *fh, int slot)
-// {
-//     FH_CHECK(fh);
-//     _fh_unlock(fh, slot);
-//     return FH_OK;
-// }
-
-// release a lock left from fh_searchlock
-int fh_release_searchlock(fh_t *fh, int slot)
+int fh_releaselock(fh_t *fh, int slot)
 {
     FH_CHECK(fh);
-    fh->unlock_f(fh, slot);
+    fh->unlock_f(fh, slot)
     return FH_OK;
 }
-
-// release a lock left from fh_insertlock
-int fh_release_insertlock(fh_t *fh, int slot)
-{
-    FH_CHECK(fh);
-    fh->unlock_f(fh, slot);
-    return FH_OK;
-}
-
 
 // Enum creation. List of elements is allocated to the number of elements contained in hash table.
 // Idx is the current element index, initialized to the first element
@@ -1115,18 +1102,18 @@ fh_enum_t *fh_enum_create(fh_t *fh, int sort_order, int *error)
         return NULL;
     }
     fh_enum_t *fhe = malloc(sizeof(fh_enum_t));
-    // if (fhe == NULL)
-    // {
-    //     *error = FH_NO_MEMORY;
-    //     return NULL;
-    // }
+    if (fhe == NULL)
+    {
+        *error = FH_NO_MEMORY;
+        return NULL;
+    }
     fhe->elem_list = calloc(elements_in_hash, sizeof(fh_elem_t));
-    // if (fhe->elem_list == NULL)
-    // {
-    //     free(fhe);
-    //     *error = FH_NO_MEMORY;
-    //     return NULL;
-    // }
+    if (fhe->elem_list == NULL)
+    {
+        free(fhe);
+        *error = FH_NO_MEMORY;
+        return NULL;
+    }
     fhe->idx = 0;
     fhe->is_valid = 1;
     fhe->magic = FHE_MAGIC_ID;
