@@ -1,5 +1,9 @@
 # Changelog
 
+### 1.2.1 Aug 2024
+
+No need for specialized unlock methods
+
 ### 1.2.0 Aug 2024
 
 - fh_setattr(f, FH_SETATTR_USERWLOCKS, 1) to use rwlocks instead of mutexes. Performance is better with rwlocks but
