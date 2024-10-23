@@ -13,7 +13,7 @@
 
 LIB = avl
 EXE = testavl
-SRC = TestMain.cpp TestAVL.cpp
+SRC = TestMain.cpp TestAVL.cpp BenchAVL.cpp
 LOCAL_CXXFLAGS =
 LOCAL_LDFLAGS =
 # if any special options has to be passed to test run

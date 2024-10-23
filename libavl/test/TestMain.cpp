@@ -1,13 +1,5 @@
-/*
- *
- * Project : Vector library
- *
- * Copyright (c) ScientiaMobile, Inc. 2016
- *
- */
-
-//#include <iostream>
-// using namespace std;
+#define PICOBENCH_IMPLEMENT
+#include <picobench/picobench.hpp>
 
 #include <gtest/gtest.h>
 #include <fstream>
@@ -47,5 +39,13 @@ int main(int argc, char *argv[])
 //    }
 
     int testResult = ::testing::UnitTest::GetInstance()->Run();
+
+    // For picobench
+
+    picobench::runner r;
+    // Optionally parse command line
+    // r.parse_cmd_line(argc, argv);
+    r.run();
+
     return testResult;
 }
