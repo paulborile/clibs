@@ -257,7 +257,9 @@ static void BenchFHBigHashGet(picobench::state &s)
     for (auto _ : s)
     {
         if ( j == num_strings )
+        {
             j == 0;
+        }
         fh_get(fh, keys[j++], &err);
     }
 
@@ -304,7 +306,9 @@ static void BenchFHBigHashGetMurmur(picobench::state &s)
     for (auto _ : s)
     {
         if ( j == num_strings )
+        {
             j == 0;
+        }
         fh_get(fh, keys[j++], &err);
     }
 

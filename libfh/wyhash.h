@@ -158,7 +158,7 @@ static inline uint64_t wyhash(const void *key, size_t len, uint64_t seed, const 
         {
             a=_wyr3(p, len); b=0;
         }
-        else a=b=0;
+        else{a=b=0;}
     }
     else{
         size_t i=len;

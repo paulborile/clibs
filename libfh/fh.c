@@ -451,7 +451,9 @@ static fh_bucket *_fh_allocate_bucket()
 {
     fh_bucket *r = malloc(sizeof(fh_bucket));
     if (r == NULL)
+    {
         return NULL;
+    }
     for (int i=0; i<BUCKET_SIZE; i++)
     {
         r->mini_hashes[i] = 0;
@@ -749,7 +751,9 @@ static fh_slot *_fh_return_empty_slot_in_bucket(fh_bucket *b, uint8_t mini_hash)
             // we need an empty slot so we must add bucket
             b->next = _fh_allocate_bucket();
             if (b->next == NULL)
+            {
                 return NULL;                  // no memory
+            }
         }
         b = b->next;
     }
@@ -932,7 +936,9 @@ int fh_search(fh_t *fh, char *key, void *block, int block_size)
     FH_CHECK(fh);
     FH_KEY_CHECK(key);
     if (!block)
+    {
         return(FH_INVALID_ARGUMENT);
+    }
 
     if ( fh->h_datalen == FH_DATALEN_VOIDP )
     {

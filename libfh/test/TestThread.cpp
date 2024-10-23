@@ -524,7 +524,9 @@ TEST(FH, multithread_test_with_void_pointer)
     {
         line = trim(line);
         if (line.empty())
+        {
             continue;
+        }
 
         char *key = strtok((char *)line.c_str(), "\t");
         char *value = strtok(NULL, "\t");
