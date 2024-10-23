@@ -50,6 +50,7 @@ avl_h *avl_create(avl_h *static_handle);
 void avl_destroy(avl_h *ah);
 int avl_insert(avl_h *ah, const char *key, void *data);
 void *avl_search(avl_h *ah, const char *key);
+void *avl_del(avl_h *ah, const char *key);
 
 
 /* *INDENT-OFF* */

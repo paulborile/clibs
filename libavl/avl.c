@@ -169,3 +169,123 @@ void *avl_search(avl_h *ah, const char *key)
     }
     return avl_search_node(ah->root, key);
 }
+
+
+// Helper function to get the node with the minimum key (used to find successor)
+static avl_node *avl_min_value_node(avl_node *node)
+{
+    avl_node *current = node;
+    while (current->left != NULL) {
+        current = current->left;
+    }
+    return current;
+}
+
+// Recursive function to delete a node and rebalance the tree
+static avl_node *avl_delete_node(avl_node *root, const char *key, void **data)
+{
+    // Base case: if the tree is empty
+    if (root == NULL)
+    {
+        return root;
+    }
+
+    // Perform standard BST delete
+    if (strcmp(key, root->key) < 0)
+    {
+        root->left = avl_delete_node(root->left, key, data);
+    }
+    else if (strcmp(key, root->key) > 0)
+    {
+        root->right = avl_delete_node(root->right, key, data);
+    }
+    else {
+        // Node found, store the data before deletion
+        *data = root->data;
+
+        // Node with only one child or no child
+        if (root->left == NULL || root->right == NULL)
+        {
+            avl_node *temp = root->left ? root->left : root->right;
+
+            // No child case
+            if (temp == NULL)
+            {
+                temp = root;
+                root = NULL;
+            }
+            else{  // One child case
+                *root = *temp; // Copy the contents of the non-empty child
+
+            }
+            free(temp->key); // Free the key
+            free(temp);      // Free the node
+        }
+        else {
+            // Node with two children: Get the inorder successor (smallest in the right subtree)
+            avl_node *temp = avl_min_value_node(root->right);
+
+            // Copy the successor's data to this node
+            free(root->key);
+            root->key = strdup(temp->key);
+            root->data = temp->data;
+
+            // Delete the inorder successor
+            root->right = avl_delete_node(root->right, temp->key, &temp->data);
+        }
+    }
+
+    // If the tree had only one node, return
+    if (root == NULL)
+    {
+        return root;
+    }
+
+    // Update the height of the current node
+    root->height = avl_update_height(root);
+
+    // Rebalance the tree
+    int balance = avl_get_balance(root);
+
+    // Left Left Case
+    if (balance > 1 && avl_get_balance(root->left) >= 0)
+    {
+        return avl_rotate_right(root);
+    }
+
+    // Left Right Case
+    if (balance > 1 && avl_get_balance(root->left) < 0)
+    {
+        root->left = avl_rotate_left(root->left);
+        return avl_rotate_right(root);
+    }
+
+    // Right Right Case
+    if (balance < -1 && avl_get_balance(root->right) <= 0)
+    {
+        return avl_rotate_left(root);
+    }
+
+    // Right Left Case
+    if (balance < -1 && avl_get_balance(root->right) > 0)
+    {
+        root->right = avl_rotate_right(root->right);
+        return avl_rotate_left(root);
+    }
+
+    return root;
+}
+
+
+void *avl_del(avl_h *ah, const char *key)
+{
+    if (ah == NULL || ah->root == NULL)
+    {
+        return NULL;
+    }
+
+    void *deleted_data = NULL;
+    ah->root = avl_delete_node(ah->root, key, &deleted_data);
+
+    return deleted_data;
+}

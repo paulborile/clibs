@@ -13,7 +13,7 @@
 
 # library suffix
 LIB = avl
-SRC = avl.c
+SRC = avl.c avl_internal.c
 # any personal cflag needed by the library code
 RELEASE_CFLAGS =
 DEBUG_CFLAGS =
