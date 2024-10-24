@@ -46,7 +46,7 @@ typedef struct avl_h
     int allocated; // set if we allocated the handle
 } avl_h;
 
-avl_h *avl_create(avl_h *static_handle);
+avl_h *avl_create(avl_h *static_ah);
 void avl_destroy(avl_h *ah);
 int avl_insert(avl_h *ah, const char *key, void *data);
 void *avl_search(avl_h *ah, const char *key);
