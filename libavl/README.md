@@ -2,6 +2,18 @@
 
 libavl : experimental AVL tree library, still not thread safe, only [char *][void *] key, payload.
 
+## methods
+
+```
+avl_h *avl_create(avl_h *static_ah);
+int avl_insert(avl_h *ah, const char *key, void *data);
+void *avl_search(avl_h *ah, const char *key);
+void *avl_del(avl_h *ah, const char *key);
+void avl_destroy(avl_h *ah);
+
+```
+
+## build
 
 ```
 cd libavl
