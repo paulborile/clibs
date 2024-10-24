@@ -133,3 +133,6 @@ sp_after_comma = force
 
 # Add or remove space before '(' of 'if', 'for', 'switch', and 'while'
 sp_before_sparen = force
+
+# always add parenthesis on if/else
+mod_full_brace_if = add

@@ -1,24 +1,23 @@
-
 #define PICOBENCH_IMPLEMENT
 #include <picobench/picobench.hpp>
+
 #include <gtest/gtest.h>
 #include <fstream>
 using namespace std;
 
-#include "CommandLineParams.h"
-
+//#include "CommandLineParams.h"
 
 int main(int argc, char *argv[])
 {
-    cout << "Running main() in file c-libraries/libfh/test/TestMain.cpp" << endl;
+    cout << "Running main() in file c-libraries/libchannel/test/TestMain.cpp" << endl;
     cout << "Now running test executable: " << argv[0] << endl;
 
-    CommandLineParamsParser::GetInstance()->AddParam("data-file", "Data file", Optional);
+//    CommandLineParamsParser::GetInstance()->AddParam("data-file", "Data file", Optional);
 
     testing::InitGoogleTest(&argc, argv);
 
     // re-parse, now with full error control, to check for wrong stuff on command line
-    bool extraParamsParsed = CommandLineParamsParser::GetInstance()->Parse(argc, argv);
+//    bool extraParamsParsed = CommandLineParamsParser::GetInstance()->Parse(argc, argv);
     /*
        if (!extraParamsParsed)
        {
