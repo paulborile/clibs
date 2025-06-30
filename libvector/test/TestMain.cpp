@@ -26,7 +26,9 @@ int main(int argc, char *argv[])
     // re-parse, now with full error control, to check for wrong stuff on command line
     bool extraParamsParsed = CommandLineParamsParser::GetInstance()->Parse(argc, argv);
     if (!extraParamsParsed)
+    {
         return -1;
+    }
 
     CommandLineParamsParser::GetInstance()->PrintValues();
 

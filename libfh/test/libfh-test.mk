@@ -13,7 +13,7 @@
 
 LIB = fh
 EXE = testfh
-SRC = TestMain.cpp TestThread.cpp TestFH.cpp CommandLineParams.cpp BenchFH.cpp
+SRC = TestMain.cpp TestThread.cpp TestFH.cpp CommandLineParams.cpp
 LOCAL_CXXFLAGS = 
 LOCAL_LDFLAGS = 
 # if any special options has to be passed to test run

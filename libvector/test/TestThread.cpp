@@ -56,7 +56,9 @@ void *test_add_get(void *params)
     {
         //       line = trim(line);
         if (line.empty())
+        {
             continue;
+        }
 
         line = thread_signature + line;
         v_add(data->vh, (void *)strdup(line.c_str()));
@@ -127,7 +129,9 @@ TEST(Vector, VectorMultithread)
     {
         //       line = trim(line);
         if (line.empty())
+        {
             continue;
+        }
         file_line_nbr++;
     }
 
