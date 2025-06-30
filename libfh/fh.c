@@ -144,7 +144,7 @@ fh_t *fh_create(int dim, int datalen, fh_hash_fun hash_function)
     f->h_datalen = datalen;
 
     f->h_elements = 0;
-    f->h_collision = 0;
+    atomic_init(&f->h_collision, 0);
 
     f->h_magic = FH_MAGIC_ID;
     f->h_attr = 0;
@@ -221,9 +221,11 @@ static inline void _fh_inc_elem(fh_t *fh)
 
 static inline void _fh_inc_collision(fh_t *fh)
 {
-    pthread_mutex_lock(&(fh->e_lock));
-    fh->h_collision++;
-    pthread_mutex_unlock(&(fh->e_lock));
+    // pthread_mutex_lock(&(fh->e_lock));
+    // fh->h_collision++;
+    // pthread_mutex_unlock(&(fh->e_lock));
+
+    atomic_fetch_add(&(fh->h_collision), 1);
 }
 
 static inline void _fh_dec_elem(fh_t *fh)

@@ -7,9 +7,9 @@
 #include <stdlib.h>
 
 #include <string.h>
-#include <pthread.h>
 #include <time.h>
-
+#include <stdatomic.h>
+#include <pthread.h>
 
 #include    "fh.h"
 #include    "timing.h"
@@ -46,7 +46,9 @@ uint64_t fh_default_hash_orig(void *data, char *name)
         h = (h << 4) + *name++;
         g = (h & 0xF0000000);
         if (g)
+        {
             h ^= g >> 24;
+        }
         h &= ~g;
     }
     return h;
@@ -209,17 +211,17 @@ uint64_t elf_hash(void *data, char *key)
 #define hashmask(n) (hashsize(n) - 1)
 
 #define mix(a, b, c) \
-    { \
-        a -= b; a -= c; a ^= (c >> 13); \
-        b -= c; b -= a; b ^= (a << 8); \
-        c -= a; c -= b; c ^= (b >> 13); \
-        a -= b; a -= c; a ^= (c >> 12); \
-        b -= c; b -= a; b ^= (a << 16); \
-        c -= a; c -= b; c ^= (b >> 5); \
-        a -= b; a -= c; a ^= (c >> 3); \
-        b -= c; b -= a; b ^= (a << 10); \
-        c -= a; c -= b; c ^= (b >> 15); \
-    }
+        { \
+            a -= b; a -= c; a ^= (c >> 13); \
+            b -= c; b -= a; b ^= (a << 8); \
+            c -= a; c -= b; c ^= (b >> 13); \
+            a -= b; a -= c; a ^= (c >> 12); \
+            b -= c; b -= a; b ^= (a << 16); \
+            c -= a; c -= b; c ^= (b >> 5); \
+            a -= b; a -= c; a ^= (c >> 3); \
+            b -= c; b -= a; b ^= (a << 10); \
+            c -= a; c -= b; c ^= (b >> 15); \
+        }
 
 uint64_t jen_hash(void *data, char *k)
 {
@@ -645,7 +647,9 @@ int main( int argc, char **argv )
             for (int j=0; j<real_hash_size; j++)
             {
                 if (coll[j] > longest )
+                {
                     longest = coll[j];
+                }
             }
 
             printf("%10d%20s%15d%17.2f%15d%17d%18f\n",
@@ -687,7 +691,9 @@ int main( int argc, char **argv )
             for (int j=0; j<real_hash_size; j++)
             {
                 if (coll[j] > longest )
+                {
                     longest = coll[j];
+                }
             }
 
             printf("%10d%20s%15d%17.2f%15d%17d%18f\n",

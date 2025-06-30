@@ -68,7 +68,9 @@ string CommandLineParamsParser::GetValue(const string& key)
 {
     map<string, CommandLineParam>::iterator i = theInstance->paramsMap.find(key);
     if (i != theInstance->paramsMap.end())
+    {
         return i->second.value;
+    }
 
     // must not hit here. You are trying to use an undefined parameter.
     cout << "Unknown parameter: <" << key << ">" << endl;
@@ -137,7 +139,9 @@ bool CommandLineParamsParser::Parse(int argc, char **argv, bool reportErrors)
 CommandLineParamsParser::~CommandLineParamsParser()
 {
     if (theInstance)
+    {
         delete theInstance;
+    }
 }
 
 CommandLineParamsParser *CommandLineParamsParser::theInstance = NULL;

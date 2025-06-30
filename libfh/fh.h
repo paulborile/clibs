@@ -31,6 +31,13 @@
 extern "C" {
 #endif
 
+#ifdef __cplusplus
+#include <atomic>
+typedef std::atomic_int atomic_int;
+#else
+#include <stdatomic.h>
+#endif
+
 /** hash magic */
 #define FH_MAGIC_ID         0xCACCA
 #define FHE_MAGIC_ID        0xBACCA
@@ -105,7 +112,7 @@ struct _fh_t {
     int h_datalen;  // opaque_obj size : -1 for strings, 0 for pointers, > 0 for data
     int h_elements;  // elements in hash
     pthread_mutex_t e_lock; // elements operations lock
-    int h_collision;  // collisions during insert
+    atomic_int h_collision;  // collisions during insert
     int h_attr;  // holding attributes
     fh_hash_fun hash_function;
     pthread_mutex_t *h_lock; // standard locks, default

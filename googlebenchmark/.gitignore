@@ -1,0 +1,36 @@
+# C++ build artifacts
+*.o
+*.lo
+*.la
+*.al
+*.libs
+*.so
+*.so.*
+*.a
+*.dll
+*.lib
+*.dsym
+
+# Executables - add your specific executable names here
+# For example, if your EXE is 'uar_benchmark', add 'uar_benchmark'
+*.exe
+*.out
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Build directories
+build/
+cmake-build-*/
+
+# Test & coverage data from your makefile
+*.gcno
+*.gcda
+*_test_results.xml
+
+# IDE & editor files
+.idea/
+.vscode/
+*~
+*.swp
