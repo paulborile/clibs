@@ -12,11 +12,9 @@ OBJ = $(SRC:.cpp=.o)
 ROBJ = $(SRC:.cpp=.ro)
 
 CXXFLAGS = -std=c++14 -pthread -fpermissive -isystem ../../googletest/include -isystem ../../googletest -DDEBUG \
--isystem ../../picobench/include/ -g3 -I.. -I ../../libthp -I ../../libchannel -I ../../libtiming \
-$(LOCAL_CXXFLAGS)
+-g3 -I.. -I ../../libthp -I ../../libchannel -I ../../libtiming $(LOCAL_CXXFLAGS)
 CXXFLAGS_RELEASE = -std=c++14 -pthread -fpermissive -isystem ../../googletest/include -isystem ../../googletest \
--isystem ../../picobench/include/ -O3 -I.. -I ../../libthp -I ../../libchannel -I ../../libtiming \
-$(LOCAL_CXXFLAGS)
+-O3 -I.. -I ../../libthp -I ../../libchannel -I ../../libtiming $(LOCAL_CXXFLAGS)
 LDFLAGS = -pthread -L../ -L../../libthp -L ../../libchannel -L ../../libtiming -l$(LIB)-debug $(LOCAL_LDFLAGS) -lpthread -lthp -lch -ltiming
 RLDFLAGS = -pthread -L../ -L../../libthp -L ../../libchannel -L ../../libtiming -l$(LIB) $(LOCAL_LDFLAGS) -lpthread -lthp -lch -ltiming
 

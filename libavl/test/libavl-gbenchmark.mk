@@ -12,12 +12,12 @@
 # coveragelinux : compiles lib with coverage, compiles tests, runs tests
 
 LIB = avl
-EXE = testavl
-SRC = TestMain.cpp TestAVL.cpp
-LOCAL_CXXFLAGS =
-LOCAL_LDFLAGS =
+EXE = gbenchavl
+SRC = GBenchAVL.cpp
+LOCAL_CXXFLAGS = 
+LOCAL_LDFLAGS = 
 # if any special options has to be passed to test run
-# RUN_OPTIONS = --gtest_filter=-*CountBananas*
-RUN_OPTIONS =
+# RUN_OPTIONS = --ua-file /opt/ua_repo/ua-bench-real-traffic-data-small.txt --gtest_filter=-*CountBananas*
+RUN_OPTIONS = --benchmark_counters_tabular=true
 
-include	../../makefiles/included_for_test.mk
+include	../../makefiles/included_for_gbenchmark.mk
